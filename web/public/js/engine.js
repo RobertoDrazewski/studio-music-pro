@@ -178,11 +178,20 @@ function makeVoice(instrument, wave) {
   const settings = {
     bass: { env: { attack: 0.005, decay: 0.2, sustain: 0.55, release: 0.12 }, lp: 1600, gain: 0.9, poly: 1, detune: [0] },
     sub: { env: { attack: 0.01, decay: 0.3, sustain: 0.9, release: 0.2 }, lp: 400, gain: 1, poly: 1, detune: [0] },
-    pad: { env: { attack: 0.35, decay: 0.4, sustain: 0.7, release: 1.2 }, lp: 8000, gain: 0.3, poly: 12, detune: [-7, 7] },
-    lead: { env: { attack: 0.01, decay: 0.12, sustain: 0.5, release: 0.25 }, lp: 9000, gain: 0.55, poly: 4, detune: [0] },
-    pluck: { env: { attack: 0.002, decay: 0.28, sustain: 0, release: 0.15 }, lp: 8000, gain: 0.7, poly: 4, detune: [0] },
-    arp: { env: { attack: 0.002, decay: 0.12, sustain: 0.05, release: 0.08 }, lp: 8000, gain: 0.6, poly: 4, detune: [0] },
+    // Mids and leads start with a gentle low-pass so saw and square waves never get harsh; the song can open them up.
+    pad: { env: { attack: 0.35, decay: 0.4, sustain: 0.7, release: 1.2 }, lp: 3200, gain: 0.3, poly: 12, detune: [-7, 7] },
+    strings: { env: { attack: 0.7, decay: 0.5, sustain: 0.8, release: 1.6 }, lp: 2600, gain: 0.26, poly: 12, detune: [-10, 0, 10] },
+    organ: { env: { attack: 0.01, decay: 0.05, sustain: 0.9, release: 0.07 }, lp: 2400, gain: 0.34, poly: 8, detune: [0] },
+    keys: { env: { attack: 0.004, decay: 0.7, sustain: 0.18, release: 0.45 }, lp: 4200, gain: 0.5, poly: 8, detune: [0] },
+    stab: { env: { attack: 0.003, decay: 0.16, sustain: 0, release: 0.12 }, lp: 3200, gain: 0.5, poly: 8, detune: [-6, 6] },
+    lead: { env: { attack: 0.01, decay: 0.12, sustain: 0.5, release: 0.25 }, lp: 5200, gain: 0.5, poly: 4, detune: [0] },
+    synth: { env: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.35 }, lp: 4200, gain: 0.55, poly: 4, detune: [-8, 8] },
+    bell: { env: { attack: 0.002, decay: 0.9, sustain: 0, release: 0.6 }, lp: 7000, gain: 0.6, poly: 6, detune: [0], ratios: [1, 2.756, 5.404], amps: [1, 0.35, 0.12] },
+    pluck: { env: { attack: 0.002, decay: 0.28, sustain: 0, release: 0.15 }, lp: 5000, gain: 0.65, poly: 4, detune: [0] },
+    arp: { env: { attack: 0.002, decay: 0.12, sustain: 0.05, release: 0.08 }, lp: 5000, gain: 0.55, poly: 4, detune: [0] },
   }[instrument];
+  const ratios = settings.ratios ?? [1];
+  const amps = settings.amps ?? [1];
 
   // Notes are plain native oscillators with a gain envelope. This is far cheaper than Tone's
   // PolySynth, which matters when a whole song is rendered offline.
@@ -198,23 +207,28 @@ function makeVoice(instrument, wave) {
     const freq = Tone.Frequency(name).toFrequency();
     const { attack, decay, sustain, release } = settings.env;
     const env = raw.createGain();
-    const peak = vel / Math.sqrt(settings.detune.length);
+    const peak = vel / Math.sqrt(settings.detune.length * ratios.length);
     env.gain.setValueAtTime(0, time);
     env.gain.linearRampToValueAtTime(peak, time + attack);
     env.gain.setTargetAtTime(peak * sustain, time + attack, Math.max(0.005, decay / 3));
     const end = time + Math.max(dur, attack);
     env.gain.setTargetAtTime(0, end, Math.max(0.01, release / 3));
     const stopAt = end + release * 1.6 + 0.05;
-    const oscs = settings.detune.map((cents) => {
+    const oscs = settings.detune.flatMap((cents) => ratios.map((ratio, k) => {
       const osc = raw.createOscillator();
       osc.type = type;
-      osc.frequency.setValueAtTime(freq, time);
+      osc.frequency.setValueAtTime(freq * ratio, time);
       osc.detune.setValueAtTime(cents, time);
-      osc.connect(env);
+      if (amps[k] !== 1) {
+        const a = raw.createGain();
+        a.gain.value = amps[k];
+        osc.connect(a);
+        a.connect(env);
+      } else osc.connect(env);
       osc.start(time);
       osc.stop(stopAt);
       return osc;
-    });
+    }));
     Tone.connect(env, sum);
     const handle = { env, oscs };
     live.add(handle);
@@ -443,7 +457,8 @@ class SongCore {
     this.ast = null;
     this.pendingAst = null;
     this.overrides = { mute: new Set(), solo: new Set() };
-    this.only = null; // render a single instrument (stems)
+    this.only = null; // Set of instruments to render (stems), or null for everything
+
     this.chains = new Map(); // signature -> Chain
     this.barCount = 0;
 
@@ -542,8 +557,9 @@ class SongCore {
     const bySource = new Map();
     for (const p of planned) bySource.set(p.track.instrument, p.events);
 
+    const hits = [];
     for (const { track, idx, events } of planned) {
-      if (this.only && track.instrument !== this.only) continue; // stem render: other tracks are skipped entirely
+      if (this.only && !this.only.has(track.instrument)) continue; // stem render: other tracks are skipped entirely
       const chain = this.chainFor(track, section, barIndex);
       chain.applyBar(time, every.get(track.instrument));
       const isAudible = audible(track.instrument);
@@ -567,13 +583,23 @@ class SongCore {
         for (let r = 0; r < ev.repeat; r++) {
           const accent = r === 0 ? 1 : 0.75;
           const dur = Math.max(0.02, slot * (DRUMS.includes(track.instrument) ? 0.9 : 0.95));
-          chain.voice.trigger(t0 + r * slot, ev, dur, vel * accent);
+          hits.push({ chain, t: t0 + r * slot, ev, dur, vel: vel * accent });
         }
       }
     }
+    // Two lines of the same instrument share one voice: fire in time order and skip exact duplicates,
+    // because the synths cannot start twice at the same instant.
+    hits.sort((a, b) => a.t - b.t);
+    const lastHit = new Map();
+    for (const k of hits) {
+      const prev = lastHit.get(k.chain);
+      if (prev !== undefined && k.t <= prev + 0.0005) continue;
+      lastHit.set(k.chain, k.t);
+      k.chain.voice.trigger(k.t, k.ev, k.dur, k.vel);
+    }
 
     // Spoken clips start at the beginning of their bar.
-    if (!this.only || this.only === 'voice') {
+    if (!this.only || this.only.has('voice')) {
       for (const v of section.voices ?? []) {
         if (v.bar !== barInSection + 1 || !audible('voice')) continue;
         const buffer = voiceBuffers.get(voiceKey(v));
@@ -599,9 +625,9 @@ class SongCore {
   prepare(ast) {
     for (const section of ast.sections) {
       for (const track of section.tracks) {
-        if (!this.only || track.instrument === this.only) this.chainFor(track, section, 0);
+        if (!this.only || this.only.has(track.instrument)) this.chainFor(track, section, 0);
       }
-      if (!this.only || this.only === 'voice') {
+      if (!this.only || this.only.has('voice')) {
         for (const v of section.voices ?? []) this.chainFor(voiceTrack(v), section, 0);
       }
     }
@@ -743,7 +769,7 @@ export async function renderSong(ast, { only = null, sampleRate = 44100 } = {}) 
   const buffer = await Tone.Offline(async () => {
     const core = new SongCore({ live: false });
     core.ast = single;
-    core.only = only;
+    core.only = only ? new Set([].concat(only)) : null;
     core.setMasterEffects(single.master);
     core.prepare(single);
     const transport = core.transport;
@@ -758,19 +784,27 @@ const PEAK_CEILING = 0.89; // about -1 dBFS
 
 // Renders the mix and (optionally) one file per instrument. Everything is scaled by the same factor
 // so nothing clips and the stems still add up to the mix.
-export async function renderProject(ast, { stems = true, onProgress = () => {} } = {}) {
+export async function renderProject(ast, { stems = true, groups = 'instrument', groupOf = () => 'other', onProgress = () => {} } = {}) {
   const audible = audibleSet(ast);
-  const names = stems ? songInstruments(ast).filter(audible) : [];
-  const total = 1 + names.length;
+  const insts = stems ? songInstruments(ast).filter(audible) : [];
+  // What to render as separate files: each instrument, each group (percussion, bass...) or both.
+  const items = [];
+  if (groups === 'instrument' || groups === 'both') for (const n of insts) items.push({ name: n, only: [n], kind: 'instrument', group: groupOf(n) });
+  if (groups === 'group' || groups === 'both') {
+    const byGroup = new Map();
+    for (const n of insts) byGroup.set(groupOf(n), [...(byGroup.get(groupOf(n)) ?? []), n]);
+    for (const [g, members] of byGroup) items.push({ name: g, only: members, kind: 'group', group: g });
+  }
+  const total = 1 + items.length;
   onProgress({ step: 0, total, label: 'mix' });
   const mix = await renderSong(ast);
   const peak = bufferStats(mix).peak;
   if (peak < 0.0005) throw new Error('The song renders as silence. Check that it has audible instruments.');
   const scale = peak > PEAK_CEILING ? PEAK_CEILING / peak : 1;
   const rendered = [];
-  for (let i = 0; i < names.length; i++) {
-    onProgress({ step: i + 1, total, label: names[i] });
-    rendered.push({ name: names[i], buffer: await renderSong(ast, { only: names[i] }) });
+  for (let i = 0; i < items.length; i++) {
+    onProgress({ step: i + 1, total, label: items[i].name });
+    rendered.push({ ...items[i], buffer: await renderSong(ast, { only: items[i].only }) });
   }
   if (scale !== 1) {
     for (const b of [mix, ...rendered.map((r) => r.buffer)]) {

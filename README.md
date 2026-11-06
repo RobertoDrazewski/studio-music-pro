@@ -1,6 +1,6 @@
 # studio-music-pro
 
-Live-coding music studio for the browser. Write a few lines of code, press play and hear it; edit while it plays; generate songs with AI; master and export the whole project.
+Live-coding music studio for the browser. Write a few lines of code, press play and hear it; edit while it plays; generate songs with AI; master and export the whole project (including a free, in-browser Studio pack for Reaper: mix, one WAV per instrument or group, a `.rpp` project and the song code).
 
 Status: **v0.1, complete product**: API in `server/`, web app in `web/public/` (plain HTML, CSS and ES modules, no build step).
 

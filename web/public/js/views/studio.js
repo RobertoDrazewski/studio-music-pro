@@ -4,8 +4,10 @@ import { Editor } from '../editor.js';
 import { Player, createScope, createTransport } from '../player.js';
 import { DEMO_SONG } from '/shared/lang/demo.js';
 import { LIMITS } from '/shared/lang/spec.js';
-import { exportViaServer, exportWav } from '../export.js';
+import { exportViaServer, exportWav, exportStem, exportStudioPack, estimatePackMb } from '../export.js';
 import { STYLES, STYLE_BY_ID } from '/shared/lang/styles.js';
+import { openManual } from '../manual.js';
+import { insertLineInSection } from '/shared/lang/edit.js';
 import { createInstallButton } from '../install.js';
 import { createPromptPanel } from '../promptpanel.js';
 import { createVoicesPanel } from '../voices.js';
@@ -92,7 +94,7 @@ export async function mount(root, projectId) {
   // ---------- visual controls (all of them rewrite the code) ----------
   const edit = makeEdit(editor);
   const patternEditor = createPatternEditor({ player, edit, editor });
-  const mixerUi = createMixer({ player, edit, openPattern: (i) => patternEditor.open(i) });
+  const mixerUi = createMixer({ player, edit, exportStem: (names, label) => exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
   const voicesPanel = createVoicesPanel({ player, edit, editor, session });
@@ -194,6 +196,7 @@ export async function mount(root, projectId) {
     freeText: aiPrompt,
     getStyleName: () => STYLE_BY_ID[styleSel.value]?.name ?? '',
     setStyle: (id) => { styleSel.value = id; },
+    onApply: () => runAi('edit'),
   });
   styleSel.addEventListener('change', () => promptPanel.refresh());
   const aiNote = h('div', { class: 'muted', style: 'font-size:13px' });
@@ -276,12 +279,31 @@ export async function mount(root, projectId) {
     const nameInput = h('input', { class: 'input', value: title.value || 'song', maxlength: 100 });
     const mq = session.quota?.master;
     const mqText = mq ? (mq.limit === null ? 'Masters today: unlimited' : `Masters today: ${mq.remaining} of ${mq.limit} left`) : '';
+    const packMode = h('select', { class: 'select' },
+      h('option', { value: 'instrument' }, 'Each instrument (kick, bass, pad, lead, voices…)'),
+      h('option', { value: 'group' }, 'Groups (percussion, bass, mids, lead, voices)'),
+      h('option', { value: 'both' }, 'Both: instruments and groups'));
+    const packBits = h('select', { class: 'select' }, h('option', { value: '24' }, '24-bit'), h('option', { value: '16' }, '16-bit (smaller)'));
+    const packRpp = h('input', { type: 'checkbox', checked: true });
+    const packNote = h('p', { class: 'muted', style: 'font-size:12px' });
+    const updatePackNote = () => {
+      const mb = estimatePackMb(player.ast, packMode.value, Number(packBits.value));
+      packNote.textContent = `About ${mb} MB. Every file has the same length and starts at 0, so they line up in any DAW.${mb > 600 ? ' Large: try 16-bit or groups.' : ''}`;
+    };
+    packMode.addEventListener('change', updatePackNote); packBits.addEventListener('change', updatePackNote); updatePackNote();
     const stage = h('div');
     const form = h('div', {},
       h('img', { class: 'stage-img', src: '/img/master-processing-wide.jpg', alt: '' }),
       h('div', { class: 'field' }, h('label', {}, 'File name'), nameInput),
       h('div', { class: 'row' }, h('div', { class: 'field', style: 'flex:2;min-width:200px' }, h('label', {}, 'Mastering preset'), preset),
         h('div', { class: 'field', style: 'flex:1;min-width:120px' }, h('label', {}, 'Target LUFS'), lufs)),
+      h('div', { class: 'pack-box' },
+        h('h4', {}, 'Studio pack for Reaper (free, made in your browser)'),
+        h('div', { class: 'row' },
+          h('div', { class: 'field', style: 'flex:2;min-width:180px' }, h('label', {}, 'Separate files'), packMode),
+          h('div', { class: 'field', style: 'flex:1;min-width:110px' }, h('label', {}, 'Bit depth'), packBits)),
+        h('label', { class: 'check' }, packRpp, ' Include a Reaper project (project.rpp)'),
+        packNote),
       h('p', { class: 'muted', style: 'font-size:13px' }, `${mqText}${mqText ? ' · ' : ''}The mix and each instrument are rendered in your browser, so a long song can take a minute.`),
       stage);
     let running = null;
@@ -297,7 +319,14 @@ export async function mount(root, projectId) {
       lock(true);
       try {
         const t = nameInput.value.trim() || 'song';
-        if (kind === 'wav') {
+        if (kind === 'pack') {
+          let pct = 0;
+          const res = await exportStudioPack({
+            ast: player.ast, code: editor.value, title: t, mode: packMode.value, bits: Number(packBits.value), rpp: packRpp.checked,
+            onStatus: (s) => setStage(s, pct), onProgress: (p) => { pct = p * 0.9; },
+          });
+          stage.replaceChildren(h('p', { class: 'mono' }, `✓ Studio pack downloaded (${res.files} files, ${Math.round(res.bytes / 1e6)} MB)`));
+        } else if (kind === 'wav') {
           setStage('Rendering…', 0.4);
           await exportWav(player.ast, t, (s) => setStage(s, 0.4));
           stage.replaceChildren(h('p', { class: 'mono' }, '✓ WAV downloaded'));
@@ -327,18 +356,23 @@ export async function mount(root, projectId) {
     const bMaster = h('button', { class: 'btn primary', onclick: () => run('master') }, 'Master + stems (ZIP)');
     const bMp3 = h('button', { class: 'btn', onclick: () => run('mp3') }, 'MP3 of the mix');
     const bWav = h('button', { class: 'btn', onclick: () => run('wav') }, 'WAV of the mix');
-    buttons.push(bMaster, bMp3, bWav);
-    m.el.querySelector('.modal').append(h('div', { class: 'modal-actions' }, bWav, bMp3, bMaster));
+    const bPack = h('button', { class: 'btn primary', onclick: () => run('pack') }, 'Studio pack for Reaper (ZIP)');
+    buttons.push(bMaster, bMp3, bWav, bPack);
+    m.el.querySelector('.modal').append(h('div', { class: 'modal-actions' }, bWav, bMp3, bMaster, bPack));
   };
 
   // ---------- language reference ----------
-  const reference = h('details', { class: 'box' }, h('summary', {}, 'Language cheat sheet'),
-    h('div', { class: 'ref' },
-      h('p', {}, h('b', {}, 'section'), ' name 8 — a part of the song, in bars'), h('p', {}, h('b', {}, 'kick'), ' "x . . . x . . ." — drums: x hits, . rests'),
-      h('p', {}, h('b', {}, 'bass'), ' "a1 . c2 ." saw lowpass 400 — notes + wave + effects'), h('p', {}, h('b', {}, 'pad'), ' "[a2,c3,e3] _ _ _" — chords, _ holds'),
-      h('p', {}, 'x*2 repeats, x? is 50% chance'), h('p', {}, h('b', {}, 'every'), ' 4 bars: lead pan -0.5'),
-      h('p', {}, h('b', {}, 'bpm key swing master mute solo loop')),
-      h('p', {}, `Max ${LIMITS.maxLines} lines.`)));
+  const insertFromManual = (lines) => {
+    const ast = player.result.ok ? player.result.ast : player.lastGood ?? player.result.ast;
+    const sec = player.position?.section ?? ast.sections.at(-1)?.name ?? null;
+    edit((c) => {
+      // Whole sections / globals go at the end of the song; instrument lines go inside the current section.
+      if (lines.some((l) => /^(section|bpm|key|swing|master|loop|mute|solo)\b/.test(l.trim()))) return `${c.trimEnd()}\n\n${lines.join('\n')}\n`;
+      return lines.reduce((acc, l) => insertLineInSection(acc, sec, l), c);
+    });
+    toast('Added to your song', 'ok', 1800);
+  };
+  const reference = h('button', { class: 'btn manual-btn', type: 'button', onclick: () => openManual({ insert: insertFromManual }) }, '📖 Open the full manual');
 
   // ---------- layout ----------
   const logout = async () => { await flush(); await api.logout().catch(() => {}); session.clear(); navigate('/'); };

@@ -3,6 +3,9 @@ import { api } from './api.js';
 import { renderProject, renderSong, encodeWav, songDuration } from './engine.js';
 import { download } from './dom.js';
 import { MAX_AUDIO_SECONDS } from './config.js';
+import { makeZip } from './zip.js';
+import { groupOf } from '/shared/lang/promptbuilder.js';
+import { buildReaperProject, buildReadme } from '/shared/lang/reaper.js';
 
 const UPLOAD_BUDGET_BYTES = 90 * 1024 * 1024; // each file must stay under the server limit (95 MB)
 
@@ -73,4 +76,55 @@ export async function exportViaServer({ ast, code, title, kind = 'master', prese
   const { job } = await api.startJob({ uploadId, kind, title, preset, targetLufs, code });
   const done = await poll(job.id, onStatus, signal);
   return { job: done, url: `/api/master/jobs/${done.id}/download`, filename: `${safeName(title)}-${kind === 'mp3' ? 'mix.mp3' : 'master.zip'}` };
+}
+
+// One stem (an instrument or a whole group) as a WAV, rendered in the browser. No server, no quota.
+export async function exportStem(ast, title, names, label, onStatus = () => {}) {
+  checkLength(ast);
+  onStatus(`Rendering ${label}…`);
+  const buffer = await renderSong(ast, { only: names });
+  download(encodeWav(buffer, 24), `${safeName(title)}-${safeName(label)}.wav`);
+}
+
+// Studio pack: ZIP with the mix, the stems, a Reaper project and a short README. Everything stays in the browser.
+// mode: 'instrument' | 'group' | 'both'.
+export async function exportStudioPack({ ast, code, title, mode = 'instrument', bits = 24, rpp = true, onProgress = () => {}, onStatus = () => {} }) {
+  checkLength(ast);
+  const rendered = await renderProject(ast, {
+    groups: mode, groupOf,
+    onProgress: (p) => {
+      onProgress(p.step / p.total);
+      onStatus(p.label === 'mix' ? 'Rendering the full mix…' : p.label === 'done' ? 'Packing files…' : `Rendering ${p.label}`);
+    },
+  });
+  const seconds = songDuration(ast);
+  const base = safeName(title);
+  const files = [{ name: 'mix.wav', data: encodeWav(rendered.mix, bits) }];
+  const used = new Set();
+  const nameFor = (s) => { let n = safeName(s.name); while (used.has(`${s.kind}/${n}`)) n += '-2'; used.add(`${s.kind}/${n}`); return n; };
+  const tracks = [];
+  const order = ['percussion', 'bass', 'mids', 'lead', 'voice', 'other'];
+  const byGroup = (a, b) => order.indexOf(a.group) - order.indexOf(b.group);
+  for (const s of [...rendered.stems].sort(byGroup)) {
+    const path = `${s.kind === 'group' ? 'groups' : 'stems'}/${nameFor(s)}.wav`;
+    files.push({ name: path, data: encodeWav(s.buffer, bits) });
+    if (s.kind === 'instrument' || mode === 'group') tracks.push({ name: s.name, file: path, group: s.kind === 'instrument' ? s.group : null });
+  }
+  if (rpp) files.push({ name: 'project.rpp', data: buildReaperProject({ bpm: ast.bpm, seconds, tracks, mixFile: 'mix.wav', sampleRate: 44100 }) });
+  files.push({ name: 'song.pulse', data: code ?? '' });
+  files.push({ name: 'README.txt', data: buildReadme({ title: title || 'song', bpm: ast.bpm, seconds, bits, files: files.map((f) => f.name), hasProject: rpp }) });
+  onStatus('Creating the ZIP…');
+  const zip = await makeZip(files);
+  download(zip, `${base}-studio-pack.zip`);
+  return { files: files.length, bytes: zip.size };
+}
+
+// Rough size of a pack in MB, to warn before rendering very long songs.
+export function estimatePackMb(ast, mode, bits) {
+  const insts = new Set();
+  for (const s of ast.sections) { for (const t of s.tracks) insts.add(t.instrument); if (s.voices?.length) insts.add('voice'); }
+  const per = songDuration(ast) * 44100 * 2 * (bits / 8) / 1e6;
+  const groups = new Set([...insts].map((n) => groupOf(n)));
+  const n = 1 + (mode !== 'group' ? insts.size : 0) + (mode !== 'instrument' ? groups.size : 0);
+  return Math.round(per * n);
 }

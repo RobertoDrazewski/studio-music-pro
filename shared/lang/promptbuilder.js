@@ -41,34 +41,58 @@ export const KEY_SCALES = ['minor', 'major'];
 export const INSTRUMENT_GROUPS = [
   { id: 'percussion', label: 'Percussion', items: ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc'] },
   { id: 'bass', label: 'Bass', items: ['bass', 'sub'] },
-  { id: 'mids', label: 'Mids (harmony)', items: ['pad', 'pluck', 'arp'] },
-  { id: 'lead', label: 'Lead (melody)', items: ['lead'] },
+  { id: 'mids', label: 'Mids (harmony)', items: ['pad', 'strings', 'organ', 'keys', 'stab', 'pluck', 'arp'] },
+  { id: 'lead', label: 'Lead (melody)', items: ['lead', 'synth', 'bell'] },
 ];
 export const groupOf = (instrument) => (instrument === 'voice' ? 'voice' : INSTRUMENT_GROUPS.find((g) => g.items.includes(instrument))?.id ?? 'other');
 
 // One-click changes for "Edit current". They are phrased as instructions about the existing song.
-export const QUICK_EDITS = [
-  { id: 'faster', label: 'Faster', text: 'raise the tempo by about 8 bpm' },
-  { id: 'slower', label: 'Slower', text: 'lower the tempo by about 10 bpm' },
-  { id: 'heavier-bass', label: 'Heavier bass', text: 'make the bass heavier: lower its lowpass, add a sub if missing, add some distortion' },
-  { id: 'lighter-bass', label: 'Lighter bass', text: 'make the bass lighter and shorter, raise its lowpass, lower its volume' },
-  { id: 'more-space', label: 'More space', text: 'add more reverb and delay to pads, leads and percussion' },
-  { id: 'drier', label: 'Drier', text: 'reduce reverb and delay so the mix feels tighter and drier' },
-  { id: 'brighter', label: 'Brighter', text: 'make it brighter: raise the lowpass values and add a little hi-hat energy' },
-  { id: 'darker', label: 'Darker', text: 'make it darker: lower the lowpass values and use minor, low voicings' },
-  { id: 'add-build', label: 'Add build-up', text: 'add a build-up section before the main groove (rising filter, snare roll, riser feel)' },
-  { id: 'add-drop', label: 'Add drop', text: 'add a big drop section with every main instrument playing' },
-  { id: 'add-break', label: 'Add breakdown', text: 'add a breakdown section with only pad and melody and no kick' },
-  { id: 'add-intro', label: 'Add intro', text: 'add a short intro that introduces the elements one by one' },
-  { id: 'add-outro', label: 'Add outro', text: 'add an outro that removes elements one by one' },
-  { id: 'new-melody', label: 'New melody', text: 'write a new lead melody, keep the key' },
-  { id: 'new-bassline', label: 'New bass line', text: 'write a new bass line that follows the chords, keep the key' },
-  { id: 'more-drums', label: 'Busier drums', text: 'make the drum patterns busier: more hats, ghost notes on snare, a perc line' },
-  { id: 'simplify', label: 'Simplify', text: 'simplify: remove one or two instruments and thin out busy patterns' },
-  { id: 'more-groove', label: 'More groove', text: 'add swing and variation so it grooves more' },
-  { id: 'wider', label: 'Wider stereo', text: 'widen the stereo image by panning hats, percussion and arps' },
-  { id: 'automation', label: 'More movement', text: 'add "every N bars" automation: filter sweeps, delay throws and panning' },
+export const EDIT_GROUPS = [
+  { id: 'tempo', label: 'Tempo & feel', icon: '⏱' },
+  { id: 'tone', label: 'Tone', icon: '🎛' },
+  { id: 'space', label: 'Space & width', icon: '🌌' },
+  { id: 'structure', label: 'Structure', icon: '🧱' },
+  { id: 'parts', label: 'Parts & sounds', icon: '🎹' },
 ];
+export const STRENGTHS = [
+  { id: 'subtle', label: 'Subtle', text: 'subtle (small, careful changes)' },
+  { id: 'normal', label: 'Normal', text: 'normal' },
+  { id: 'strong', label: 'Strong', text: 'strong (bold, obvious changes)' },
+];
+export const QUICK_EDITS = [
+  { id: 'faster', group: 'tempo', icon: '⏩', label: 'Faster', text: 'raise the tempo by about 8 bpm' },
+  { id: 'slower', group: 'tempo', icon: '⏪', label: 'Slower', text: 'lower the tempo by about 10 bpm' },
+  { id: 'more-groove', group: 'tempo', icon: '🕺', label: 'More groove', text: 'add swing and variation so it grooves more' },
+  { id: 'halftime', group: 'tempo', icon: '🐌', label: 'Half-time feel', text: 'make the drums feel half-time (snare on beat 3) without changing the bpm' },
+  { id: 'heavier-bass', group: 'tone', icon: '🔊', label: 'Heavier bass', text: 'make the bass heavier: lower its lowpass, add a sub if missing, add some distortion' },
+  { id: 'lighter-bass', group: 'tone', icon: '🪶', label: 'Lighter bass', text: 'make the bass lighter and shorter, raise its lowpass, lower its volume' },
+  { id: 'brighter', group: 'tone', icon: '☀️', label: 'Brighter', text: 'make it brighter: raise the lowpass values and add a little hi-hat energy' },
+  { id: 'darker', group: 'tone', icon: '🌑', label: 'Darker', text: 'make it darker: lower the lowpass values and use minor, low voicings' },
+  { id: 'softer-mids', group: 'tone', icon: '🧈', label: 'Softer mids', text: 'make the mids smoother and less harsh: lower the lowpass on pads, leads, plucks and stabs, lower their volume, avoid notes above octave 5' },
+  { id: 'punchier', group: 'tone', icon: '🥊', label: 'Punchier drums', text: 'make the drums punchier: louder kick and snare, tighter hats, a little distortion on the snare' },
+  { id: 'more-space', group: 'space', icon: '🏔', label: 'More space', text: 'add more reverb and delay to pads, leads and percussion' },
+  { id: 'drier', group: 'space', icon: '🏜', label: 'Drier', text: 'reduce reverb and delay so the mix feels tighter and drier' },
+  { id: 'wider', group: 'space', icon: '↔️', label: 'Wider stereo', text: 'widen the stereo image by panning hats, percussion and arps' },
+  { id: 'automation', group: 'space', icon: '🌊', label: 'More movement', text: 'add "every N bars" automation: filter sweeps, delay throws and panning' },
+  { id: 'add-intro', group: 'structure', icon: '🚪', label: 'Add intro', text: 'add a short intro that introduces the elements one by one' },
+  { id: 'add-build', group: 'structure', icon: '📈', label: 'Add build-up', text: 'add a build-up section before the main groove (rising filter, snare roll, riser feel)' },
+  { id: 'add-drop', group: 'structure', icon: '💥', label: 'Add drop', text: 'add a big drop section with every main instrument playing' },
+  { id: 'add-break', group: 'structure', icon: '🫧', label: 'Add breakdown', text: 'add a breakdown section with only pad and melody and no kick' },
+  { id: 'add-outro', group: 'structure', icon: '🌅', label: 'Add outro', text: 'add an outro that removes elements one by one' },
+  { id: 'simplify', group: 'structure', icon: '✂️', label: 'Simplify', text: 'simplify: remove one or two instruments and thin out busy patterns' },
+  { id: 'more-variation', group: 'structure', icon: '🎲', label: 'More variation', text: 'make every section clearly different from the previous one: change patterns, filters and which instruments play' },
+  { id: 'new-melody', group: 'parts', icon: '🎶', label: 'New melody', text: 'write a new lead melody, keep the key' },
+  { id: 'new-bassline', group: 'parts', icon: '🎸', label: 'New bass line', text: 'write a new bass line that follows the chords, keep the key' },
+  { id: 'new-chords', group: 'parts', icon: '🎼', label: 'New chords', text: 'write a new chord progression for the pads and stabs, keep the key' },
+  { id: 'more-drums', group: 'parts', icon: '🥁', label: 'Busier drums', text: 'make the drum patterns busier: more hats, ghost notes on snare, a perc line' },
+  { id: 'add-keys', group: 'parts', icon: '🎹', label: 'Add keys', text: 'add a "keys" part with soft chords in the main section' },
+  { id: 'add-organ', group: 'parts', icon: '⛪', label: 'Add organ bubble', text: 'add an "organ" playing short chords on the off-beats' },
+  { id: 'add-stabs', group: 'parts', icon: '⚡', label: 'Add stabs', text: 'add a "stab" instrument with short punchy chords' },
+  { id: 'add-strings', group: 'parts', icon: '🎻', label: 'Add strings', text: 'add a slow "strings" part with long chords' },
+  { id: 'add-bell', group: 'parts', icon: '🔔', label: 'Add bell melody', text: 'add a sparse "bell" melody in a high octave' },
+  { id: 'swap-lead', group: 'parts', icon: '🔁', label: 'Swap lead sound', text: 'replace the lead instrument with a different one (for example synth, keys, bell or pluck) and keep the melody' },
+];
+
 
 // Ready-made starting points: they fill the clicks, pick the style and write a description you can still edit.
 export const PRESETS = [
@@ -93,7 +117,7 @@ export const PRESETS = [
 export function emptySelection() {
   return {
     moods: [], bpm: null, keyRoot: '', keyScale: 'minor', energy: '', structure: '',
-    instruments: [], bass: '', feel: 'straight', fx: [], edits: [],
+    instruments: [], bass: '', feel: 'straight', fx: [], edits: [], strength: 'normal',
     voice: { on: false, gender: 'female', text: '', style: '', aiLyrics: false, lang: 'English' },
   };
 }
@@ -135,6 +159,7 @@ export function composePrompt(sel, freeText = '', { styleName = '', mode = 'new'
   }
   const edits = (sel.edits ?? []).map((id) => pick(QUICK_EDITS, id)).filter(Boolean);
   if (edits.length) parts.push(`Changes to make: ${edits.map((e) => e.text).join('; ')}.`);
+  if (edits.length && editing) { const st = pick(STRENGTHS, sel.strength); if (st && st.id !== 'normal') parts.push(`Strength of the changes: ${st.text}.`); }
   if (editing && parts.length) parts.unshift('Apply the following changes to the current song and keep everything else the same (sections, patterns, key, tempo) unless a change says otherwise.');
   const extra = String(freeText ?? '').trim();
   if (extra) parts.push(`${parts.length ? 'Extra details from the user: ' : ''}${extra}`);

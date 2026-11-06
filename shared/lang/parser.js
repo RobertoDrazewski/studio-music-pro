@@ -371,25 +371,28 @@ export function parse(source) {
         ctx.error(`Voice text too long (max ${LIMITS.maxVoiceChars} characters)`);
         return;
       }
+      // Forgiving about order, commas and quotes around the gender: "male bar 2 style "x"", "style "x" male", "male", ...
       let i = 2;
       let voice = 'female';
       let bar = 1;
       let style = '';
-      if (tokens[i] && tokens[i].type === 'word' && VOICES.includes(tokens[i].value.toLowerCase())) {
-        voice = tokens[i].value.toLowerCase();
-        i++;
-      }
-      while (tokens[i] && tokens[i].type === 'word') {
-        const w = tokens[i].value.toLowerCase();
-        if (w === 'bar') {
-          const n = tokens[i + 1] && tokens[i + 1].type === 'word' ? parseNumber(tokens[i + 1].value) : null;
+      for (;;) {
+        const tk = tokens[i];
+        if (!tk) break;
+        const w = tk.value.replace(/[,;]+$/, '').toLowerCase();
+        if (tk.type === 'string' ? VOICES.includes(w) : VOICES.includes(w)) {
+          voice = w;
+          i++;
+        } else if (tk.type === 'word' && w === 'bar') {
+          const nx = tokens[i + 1];
+          const n = nx && nx.type === 'word' ? parseNumber(nx.value.replace(/[,;]+$/, '')) : null;
           if (n === null || !Number.isInteger(n) || n < 1) {
             ctx.error('"bar" needs a whole number, e.g. bar 3 (the bar of the section where the voice starts)');
             return;
           }
           bar = n;
           i += 2;
-        } else if (w === 'style') {
+        } else if (tk.type === 'word' && w === 'style') {
           const s = tokens[i + 1];
           if (!s || s.type !== 'string') {
             ctx.error('"style" needs a quoted description, e.g. style "slow and deep"');

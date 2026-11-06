@@ -4,11 +4,11 @@ import { h } from './dom.js';
 import { LIMITS } from '/shared/lang/spec.js';
 import {
   MOODS, ENERGIES, STRUCTURES, BASS_TYPES, FEELS, FX_CHOICES, KEY_ROOTS, KEY_SCALES,
-  INSTRUMENT_GROUPS, QUICK_EDITS, PRESETS,
+  INSTRUMENT_GROUPS, QUICK_EDITS, EDIT_GROUPS, STRENGTHS, PRESETS,
   emptySelection, composePrompt, selectionIsEmpty,
 } from '/shared/lang/promptbuilder.js';
 
-export function createPromptPanel({ getStyleName, setStyle, freeText, onChange = () => {} }) {
+export function createPromptPanel({ getStyleName, setStyle, freeText, onApply = () => {}, onChange = () => {} }) {
   let sel = emptySelection();
   let previewMode = 'new';
   const root = h('div', { class: 'pb-wrap' });
@@ -39,6 +39,28 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onChange =
     changed();
   }
 
+  function editCard() {
+    const n = sel.edits.length;
+    const cards = EDIT_GROUPS.map((g) => h('div', { class: 'ed-group' },
+      h('div', { class: 'ed-title' }, h('span', { class: 'ed-ico', 'aria-hidden': 'true' }, g.icon), g.label),
+      h('div', { class: 'ed-grid' }, QUICK_EDITS.filter((e) => e.group === g.id).map((e) =>
+        h('button', { type: 'button', class: `ed-card${sel.edits.includes(e.id) ? ' on' : ''}`, 'aria-pressed': String(sel.edits.includes(e.id)), title: e.text,
+          onclick: () => { toggleIn(sel.edits, e.id); render(); changed(); } },
+        h('span', { class: 'ed-i', 'aria-hidden': 'true' }, e.icon), h('span', { class: 'ed-l' }, e.label))))));
+    const strength = h('div', { class: 'ed-seg', role: 'group', 'aria-label': 'Strength of the changes' },
+      STRENGTHS.map((s) => h('button', { type: 'button', class: sel.strength === s.id ? 'on' : '', onclick: () => { sel.strength = s.id; render(); changed(); } }, s.label)));
+    return h('section', { class: 'ed' },
+      h('div', { class: 'ed-head' },
+        h('div', {}, h('div', { class: 'ed-kicker' }, 'Edit current song'), h('div', { class: 'ed-sub' }, 'Pick what to change. The AI edits your song and keeps the rest.')),
+        h('span', { class: `ed-count${n ? ' on' : ''}` }, n ? `${n} selected` : 'none yet')),
+      h('div', { class: 'ed-strength' }, h('span', {}, 'Strength'), strength),
+      ...cards,
+      h('div', { class: 'ed-foot' },
+        h('button', { type: 'button', class: 'btn ed-apply', onclick: onApply }, n ? `✨ Apply ${n} change${n > 1 ? 's' : ''} to my song` : '✨ Apply to my song'),
+        n ? h('button', { type: 'button', class: 'btn small ghost', style: 'flex:none', onclick: () => { sel.edits = []; render(); changed(); } }, 'Clear') : null),
+      h('p', { class: 'muted', style: 'font-size:12px;margin:0' }, 'Instruments, bass, mood, tempo and key chosen below are applied too. Your text above is added as extra detail.'));
+  }
+
   function render() {
     const bpm = h('input', { class: 'input pb-num', type: 'number', min: 40, max: 240, placeholder: 'style default', value: sel.bpm ?? '', 'aria-label': 'Tempo in bpm' });
     bpm.addEventListener('input', () => { sel.bpm = bpm.value ? Number(bpm.value) : null; changed(); });
@@ -67,6 +89,7 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onChange =
       ['new', 'edit'].map((m) => h('button', { type: 'button', class: `pb-chip${previewMode === m ? ' on' : ''}`, onclick: () => { previewMode = m; render(); changed(); } }, m === 'new' ? 'New song' : 'Edit current')));
 
     root.replaceChildren(
+      editCard(),
       section('Quick starts (one click fills everything)', true,
         h('div', { class: 'pb-chips', style: 'margin-top:6px' }, PRESETS.map((p) => h('button', { type: 'button', class: 'pb-chip preset', title: p.text, onclick: () => applyPreset(p) }, p.label)))),
       section('Build a new song by clicks', true,
@@ -83,9 +106,6 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onChange =
           h('div', { class: 'pb-chips' }, chip(sel.voice.on ? 'Voice: on' : 'Voice: off', sel.voice.on, () => { sel.voice.on = !sel.voice.on; }),
             sel.voice.on ? [vGender, h('label', { class: 'muted', style: 'font-size:12px' }, aiLy, ' AI writes the lyrics'), sel.voice.aiLyrics ? lang : null] : null),
           sel.voice.on ? vText : null)),
-      section('Quick edits for "Edit current"', true,
-        h('div', { class: 'pb-chips', style: 'margin-top:6px' }, QUICK_EDITS.map((e) => chip(e.label, sel.edits.includes(e.id), () => toggleIn(sel.edits, e.id), e.text))),
-        h('p', { class: 'muted', style: 'font-size:12px;margin-top:6px' }, 'Select several, then press "Edit current". Instruments, bass, mood, tempo and key selected above are applied too.')),
       h('div', { class: 'pb-actions' }, h('button', { type: 'button', class: 'btn small', onclick: () => { sel = emptySelection(); render(); changed(); } }, 'Clear all clicks')),
       h('div', { class: 'pb-title' }, 'What the AI will receive'), previewTabs, preview);
   }

@@ -3,7 +3,7 @@
 // for autocompletion and syntax highlighting.
 
 export const DRUMS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc'];
-export const MELODIC = ['bass', 'sub', 'pad', 'lead', 'pluck', 'arp'];
+export const MELODIC = ['bass', 'sub', 'pad', 'strings', 'organ', 'keys', 'stab', 'lead', 'synth', 'bell', 'pluck', 'arp'];
 export const INSTRUMENTS = [...DRUMS, ...MELODIC];
 
 export const WAVES = ['sine', 'saw', 'square', 'tri', 'noise'];
@@ -21,6 +21,12 @@ export const DEFAULT_WAVE = {
   lead: 'square',
   pluck: 'tri',
   arp: 'square',
+  strings: 'saw',
+  organ: 'square',
+  keys: 'tri',
+  stab: 'saw',
+  synth: 'saw',
+  bell: 'sine',
 };
 
 // Effect definitions: number of numeric args (min..max) and allowed range.

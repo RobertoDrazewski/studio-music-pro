@@ -127,3 +127,12 @@ test('mic lines: recorded takes', () => {
   assert.equal(parse('mic lead').ok, false);
   assert.equal(parse('mic "x" bar 0').ok, false);
 });
+
+test('manual recipes are valid Pulse code', async () => {
+  const { RECIPES } = await import('../shared/lang/recipes.js');
+  for (const r of RECIPES) {
+    const res = parse(`bpm 120\nkey a minor\nsection a 8\n${r.lines.map((l) => '  ' + l).join('\n')}\n`);
+    assert.equal(res.ok, true, `${r.id}: ${JSON.stringify(res.errors)}`);
+    assert.equal(res.warnings.length, 0, `${r.id}: ${JSON.stringify(res.warnings)}`);
+  }
+});

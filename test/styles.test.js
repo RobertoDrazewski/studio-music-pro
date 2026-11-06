@@ -98,3 +98,23 @@ test('prompt builder: presets are valid and edit mode phrases clicks as changes'
   assert.equal(pb.groupOf('pluck'), 'mids');
   assert.equal(pb.groupOf('voice'), 'voice');
 });
+
+test('variety: different picks each time, respects a chosen key and the style palette', async () => {
+  const { varietyText, PROGRESSIONS } = await import('../shared/lang/variety.js');
+  const { buildGeneratorMessages } = await import('../shared/lang/guide.js');
+  const { INSTRUMENTS } = await import('../shared/lang/spec.js');
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) seen.add(varietyText({ styleId: 'dub' }));
+  assert.ok(seen.size > 10, 'many different combinations');
+  for (const t of seen) {
+    const lead = /Main melodic voice: (\w+)\./.exec(t)[1];
+    assert.ok(INSTRUMENTS.includes(lead), lead);
+  }
+  assert.match(varietyText({ keyChosen: true }), /Use the key the user asked for/);
+  assert.ok(Object.values(PROGRESSIONS).every((l) => l.length >= 5));
+  const fixed = () => 0;
+  const m = buildGeneratorMessages({ prompt: 'a techno track', styleId: 'techno', rand: fixed });
+  assert.match(m.messages[1].content, /VARIATION FOR THIS SONG/);
+  // edit mode never adds variation
+  assert.doesNotMatch(buildGeneratorMessages({ prompt: 'faster', code: 'bpm 120', rand: fixed }).messages[1].content, /VARIATION/);
+});

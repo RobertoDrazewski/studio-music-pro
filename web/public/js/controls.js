@@ -71,7 +71,7 @@ export function createTempoBar({ player, edit }) {
 // ---------------------------------------------------------------------------------------------
 // Mixer: one row per instrument with mute/solo and a panel of sliders
 // ---------------------------------------------------------------------------------------------
-export function createMixer({ player, edit, openPattern }) {
+export function createMixer({ player, edit, openPattern, exportStem = () => {} }) {
   const root = h('div', { class: 'mixer' });
   const scopeSel = h('select', { class: 'select small-select', 'aria-label': 'Where edits apply' },
     h('option', { value: 'all' }, 'Edits apply to: all sections'),
@@ -162,6 +162,7 @@ export function createMixer({ player, edit, openPattern }) {
       const allSolo = members.every((n) => player.solo.has(n));
       root.append(h('div', { class: `mix-group g-${gid}` },
         h('span', {}, label), h('span', { class: 'mix-count' }, String(members.length)), h('span', { class: 'spacer' }),
+        h('button', { class: 'dl', title: `Download ${label.toLowerCase()} as WAV`, 'aria-label': `Download ${label} as WAV`, onclick: () => exportStem(members, label) }, '⬇'),
         h('button', { class: `m${allMuted ? ' on' : ''}`, title: `Mute all ${label.toLowerCase()}`, 'aria-pressed': String(allMuted), onclick: () => members.forEach((n) => player.mute.has(n) === allMuted && player.toggleMute(n)) }, 'M'),
         h('button', { class: `s${allSolo ? ' on' : ''}`, title: `Solo all ${label.toLowerCase()}`, 'aria-pressed': String(allSolo), onclick: () => members.forEach((n) => player.solo.has(n) === allSolo && player.toggleSolo(n)) }, 'S')));
       ordered.push(...members);
@@ -177,6 +178,7 @@ export function createMixer({ player, edit, openPattern }) {
         h('div', { class: `mix-row${player.mute.has(n) || (anySolo && !player.solo.has(n)) ? ' dim' : ''}` },
           h('img', { src: `/img/instruments/${n}.png`, alt: '' }),
           h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? opened.delete(n) : opened.add(n); build(); } }, `${open ? '▾' : '▸'} ${n}`),
+          h('button', { class: 'dl', title: `Download ${n} as WAV`, 'aria-label': `Download ${n} as WAV`, onclick: () => exportStem([n], n) }, '⬇'),
           h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
           h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S')),
         open ? controls(n) : null);

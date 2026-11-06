@@ -1,0 +1,31 @@
+// Copy-and-paste building blocks for the manual. Every recipe is a list of lines that go inside a section;
+// the tests parse all of them, so they are always valid Pulse code.
+
+export const RECIPES = [
+  { id: 'four-floor', title: 'Four on the floor', tag: 'House, techno', desc: 'A kick on every beat, a clap on 2 and 4 and hats between the kicks.',
+    lines: ['kick "x . . . x . . . x . . . x . . ."', 'clap ". . . . x . . . . . . . x . . ."', 'hat ". . x . . . x . . . x . . . x ."'] },
+  { id: 'one-drop', title: 'Reggae one drop', tag: 'Dub, reggae', desc: 'The kick and snare land together on beat 3; the bass is deep and slow.',
+    lines: ['kick ". . . . . . . . x . . . . . . ."', 'snare ". . . . . . . . x . . . . . . ."', 'hat "x . x . x . x . x . x . x . x ."', 'bass "a1 _ _ _ _ _ c2 _ e1 _ _ _ _ _ _ _" sine lowpass 300', 'organ ". . . . [a3,c4,e4] . . . . . . . [a3,c4,e4] . . ." vol 0.4'] },
+  { id: 'offbeat-bass', title: 'Offbeat bass', tag: 'House, trance', desc: 'The bass plays between the kicks, so kick and bass never collide.',
+    lines: ['kick "x . . . x . . . x . . . x . . ."', 'bass ". . a1 . . . a1 . . . a1 . . . a1 ." saw lowpass 500 sidechain kick'] },
+  { id: 'rolling-bass', title: 'Rolling bass', tag: 'Techno, drum and bass', desc: 'A constant 16th-note bass that moves the track forward.',
+    lines: ['bass "a1 a1 a1 a1 a1 a1 c2 a1 a1 a1 a1 a1 a1 e1 a1 a1" saw lowpass 380 vol 0.9'] },
+  { id: 'dnb-break', title: 'Drum and bass break', tag: 'Drum and bass', desc: 'Kick on 1, snare on 2 and 4 (at double time), busy hats.',
+    lines: ['kick "x . . . . . . . . . x . . . . ."', 'snare ". . . . x . . . . . . . x . . ."', 'hat "x . x x . x x . x . x x . x x ."'] },
+  { id: 'trap-hats', title: 'Trap hats', tag: 'Trap', desc: 'Fast hats with repeats: x*2 plays the hit twice, x*3 three times.',
+    lines: ['kick "x . . . . . . . . . x . . . . ."', 'snare ". . . . . . . . x . . . . . . ."', 'hat "x x*2 x x x*3 x x x*2 x x x x*2 x x*3 x"'] },
+  { id: 'acid', title: 'Acid line', tag: 'Acid techno', desc: 'Short notes, a resonant low-pass that opens over time.',
+    lines: ['bass "a1 . a1 c2 . a1 . e2 a1 . c2 . a1 g1 . a1" saw lowpass 450 distort 0.3', 'every 4 bars: bass lowpass 1800'] },
+  { id: 'arp-chords', title: 'Arpeggio over chords', tag: 'Trance, synthwave', desc: 'The arp spreads the notes of a chord across the step.',
+    lines: ['pad "[a2,c3,e3] _ _ _ [f2,a2,c3] _ _ _" saw lowpass 2500 reverb 0.5 vol 0.4', 'arp "[a3,c4,e4] [a3,c4,e4] [a3,c4,e4] [a3,c4,e4] [f3,a3,c4] [f3,a3,c4] [f3,a3,c4] [f3,a3,c4]" square lowpass 3500 delay 0.3 vol 0.45'] },
+  { id: 'keys-chords', title: 'Soft keys chords', tag: 'Deep house, lo-fi', desc: 'Warm electric-piano chords with a little space.',
+    lines: ['keys "[a3,c4,e4] . . . [f3,a3,c4] . . . [g3,b3,d4] . . . [e3,g3,b3] . . ." tri reverb 0.3 vol 0.55'] },
+  { id: 'bell-melody', title: 'Bell melody', tag: 'Ambient, trap', desc: 'A sparse, sparkling melody in a high octave.',
+    lines: ['bell "e5 . . . a5 . . . g5 . . . c5 . . ." sine reverb 0.5 delay 0.3 vol 0.5'] },
+  { id: 'sidechain', title: 'Sidechain pump', tag: 'Any dance style', desc: 'Pads and bass duck every time the kick hits.',
+    lines: ['kick "x . . . x . . . x . . . x . . ."', 'pad "[a2,c3,e3] _ _ _" saw lowpass 2800 sidechain kick vol 0.45', 'bass "a1 _ _ _ _ _ _ _" saw lowpass 400 sidechain kick'] },
+  { id: 'filter-sweep', title: 'Filter sweep', tag: 'Any', desc: '"every N bars" changes a value over time: here the pad opens every 2 bars.',
+    lines: ['pad "[a2,c3,e3] _ _ _" saw lowpass 800 reverb 0.4 vol 0.4', 'every 2 bars: pad lowpass 3500'] },
+  { id: 'buildup', title: 'Build-up roll', tag: 'Trance, dubstep, techno', desc: 'A snare that gets busier: use it in the last bars before a drop.',
+    lines: ['snare "x . . . x . . . x . x . x x x x" vol 0.7', 'hat "x x x x x x x x x x x x x x x x" highpass 6000 vol 0.3'] },
+];

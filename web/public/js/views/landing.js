@@ -6,7 +6,7 @@ import { DEMO_SONG } from '/shared/lang/demo.js';
 import { session, link, brand } from '../main.js';
 import { APP_NAME } from '../config.js';
 
-const INSTRUMENTS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc', 'bass', 'sub', 'pad', 'lead', 'pluck', 'arp'];
+const INSTRUMENTS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc', 'bass', 'sub', 'pad', 'strings', 'organ', 'keys', 'stab', 'lead', 'synth', 'bell', 'pluck', 'arp'];
 
 export function mount(root) {
   const loggedIn = !!session.user;
