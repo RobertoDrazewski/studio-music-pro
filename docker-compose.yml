@@ -1,0 +1,11 @@
+services:
+  studio:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Only reachable from the VPS itself; the tunnel points to http://localhost:3000.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/data
+    mem_limit: 1g
