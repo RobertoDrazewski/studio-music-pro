@@ -74,3 +74,27 @@ test('prompt builder: AI-written lyrics mode', async () => {
   assert.match(p, /write short original lyrics in Spanish about "night in the city"/);
   assert.match(p, /not truly sung/);
 });
+
+test('prompt builder: presets are valid and edit mode phrases clicks as changes', async () => {
+  const pb = await import('../shared/lang/promptbuilder.js');
+  const { STYLE_BY_ID } = await import('../shared/lang/styles.js');
+  const { INSTRUMENTS } = await import('../shared/lang/spec.js');
+  for (const p of pb.PRESETS) {
+    assert.ok(STYLE_BY_ID[p.style], `${p.id}: style`);
+    for (const i of p.instruments) assert.ok(INSTRUMENTS.includes(i), `${p.id}: ${i}`);
+    for (const f of p.fx ?? []) assert.ok(pb.FX_CHOICES.some((x) => x.id === f), `${p.id}: fx ${f}`);
+    for (const m of p.moods ?? []) assert.ok(pb.MOODS.includes(m), `${p.id}: mood ${m}`);
+    if (p.bass) assert.ok(pb.BASS_TYPES.some((x) => x.id === p.bass), `${p.id}: bass`);
+    if (p.structure) assert.ok(pb.STRUCTURES.some((x) => x.id === p.structure), `${p.id}: structure`);
+  }
+  const sel = pb.emptySelection();
+  sel.edits = ['heavier-bass', 'add-build'];
+  sel.instruments = ['pad'];
+  const p = pb.composePrompt(sel, '', { styleName: 'Techno', mode: 'edit' });
+  assert.match(p, /^Apply the following changes to the current song/);
+  assert.match(p, /Make sure these instruments are present and audible: pad\./);
+  assert.match(p, /Changes to make: make the bass heavier.*build-up/);
+  assert.equal(pb.groupOf('kick'), 'percussion');
+  assert.equal(pb.groupOf('pluck'), 'mids');
+  assert.equal(pb.groupOf('voice'), 'voice');
+});

@@ -310,3 +310,16 @@ td .row { flex-wrap: nowrap; gap: 6px; }
 .mic-meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .06s linear; }
 .mic-box { border-top: 1px solid var(--line); padding-top: 8px; gap: 6px; }
 .install-btn[hidden] { display: none !important; }
+
+/* ---- mixer groups and builder extras ---- */
+.mix-group { display: flex; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 4px 8px; border-left: 3px solid var(--accent); background: rgba(255,255,255,.04); border-radius: 0 8px 8px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text, #e8f1f5); }
+.mix-group.g-bass { border-color: #ff7a59; } .mix-group.g-mids { border-color: #5ad1ff; } .mix-group.g-lead { border-color: #ffd24a; } .mix-group.g-voice { border-color: #d98cff; }
+.mix-group .mix-count { font-weight: 400; color: var(--muted); }
+.mix-group button { width: 24px; height: 22px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.mix-group button.m.on { background: #7a1f2b; color: #fff; border-color: #a33; }
+.mix-group button.s.on { background: var(--accent); color: #05090f; border-color: var(--accent); }
+.pb-wrap { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.pb-wrap > .pb { margin: 0; }
+.pb-chip.preset { border-color: #3b5a17; }
+.pb-big { margin-top: 12px; color: var(--accent); }
+.pb-link { background: none; border: 0; color: var(--accent); font-size: 11px; cursor: pointer; text-transform: none; letter-spacing: 0; }

@@ -84,14 +84,16 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
       }
 
       if (!check.ok) {
-        throw new HttpError(502, 'The AI could not produce valid code this time. Try rephrasing your request.', {
+        const why = formatErrors(check.errors.slice(0, 2));
+        console.error(`[ai] invalid output after repair: ${why.replace(/\n/g, ' | ')}`);
+        throw new HttpError(502, `The AI could not produce valid code this time (${why.split('\n')[0]}). Try again, or simplify the clicks.`, {
           code: 'AI_INVALID_OUTPUT',
         });
       }
 
       // Deterministic tempo guard: models like to drift to 120-130 bpm whatever the style is.
       let tempoAdjusted = false;
-      if (!code && built.explicitBpm && check.ast.bpm !== built.explicitBpm) {
+      if (built.explicitBpm && check.ast.bpm !== built.explicitBpm) {
         result = setBpmInCode(result, built.explicitBpm);
         tempoAdjusted = true;
       } else if (!code && built.style && !built.explicitBpm) {

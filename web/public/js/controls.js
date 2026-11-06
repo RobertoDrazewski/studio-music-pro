@@ -2,6 +2,7 @@
 // Every control calls `edit(fn)`, which rewrites the song text, so the code always shows what changed.
 import { h, clear } from './dom.js';
 import { DRUMS, MELODIC } from '/shared/lang/spec.js';
+import { groupOf } from '/shared/lang/promptbuilder.js';
 import { setGlobal, setTrackEffect, setTrackWave, setStep, resizePattern, transposeTrack, getSteps, scaleNotes } from '/shared/lang/edit.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -152,7 +153,25 @@ export function createMixer({ player, edit, openPattern }) {
     clear(root);
     if (!names.length) return root.append(h('p', { class: 'muted' }, 'Instruments appear here when the code is valid.'));
     root.append(scopeSel);
-    for (const n of names) {
+    const GROUPS = [['percussion', 'Percussion'], ['bass', 'Bass'], ['mids', 'Mids'], ['lead', 'Lead'], ['voice', 'Voices'], ['other', 'Other']];
+    const ordered = [];
+    for (const [gid, label] of GROUPS) {
+      const members = names.filter((n) => groupOf(n) === gid);
+      if (!members.length) continue;
+      const allMuted = members.every((n) => player.mute.has(n));
+      const allSolo = members.every((n) => player.solo.has(n));
+      root.append(h('div', { class: `mix-group g-${gid}` },
+        h('span', {}, label), h('span', { class: 'mix-count' }, String(members.length)), h('span', { class: 'spacer' }),
+        h('button', { class: `m${allMuted ? ' on' : ''}`, title: `Mute all ${label.toLowerCase()}`, 'aria-pressed': String(allMuted), onclick: () => members.forEach((n) => player.mute.has(n) === allMuted && player.toggleMute(n)) }, 'M'),
+        h('button', { class: `s${allSolo ? ' on' : ''}`, title: `Solo all ${label.toLowerCase()}`, 'aria-pressed': String(allSolo), onclick: () => members.forEach((n) => player.solo.has(n) === allSolo && player.toggleSolo(n)) }, 'S')));
+      ordered.push(...members);
+      for (const n of members) root.append(card(n, anySolo));
+    }
+    return finishBuild();
+  }
+
+  function card(n, anySolo) {
+    {
       const open = opened.has(n);
       const row = h('div', { class: `mix-card${open ? ' open' : ''}` },
         h('div', { class: `mix-row${player.mute.has(n) || (anySolo && !player.solo.has(n)) ? ' dim' : ''}` },
@@ -161,8 +180,11 @@ export function createMixer({ player, edit, openPattern }) {
           h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
           h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S')),
         open ? controls(n) : null);
-      root.append(row);
+      return row;
     }
+  }
+
+  function finishBuild() {
     refreshers.forEach((r) => r());
   }
 

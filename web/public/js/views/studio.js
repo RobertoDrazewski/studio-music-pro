@@ -26,13 +26,6 @@ section main 8
   bass "a1 . a1 . c2 . e1 ." saw lowpass 400 sidechain kick
 `;
 
-const PROMPT_IDEAS = [
-  'Reggae dub, slow one drop with deep bass and delay on the skank',
-  'Dark techno with a hypnotic rumbling bass',
-  'Liquid drum and bass with a soft pad',
-  'Make it slower and add a build-up before the drop',
-  'Heavier bass and more space (reverb and delay)',
-];
 
 export async function mount(root, projectId) {
   const user = session.user;
@@ -200,6 +193,7 @@ export async function mount(root, projectId) {
   const promptPanel = createPromptPanel({
     freeText: aiPrompt,
     getStyleName: () => STYLE_BY_ID[styleSel.value]?.name ?? '',
+    setStyle: (id) => { styleSel.value = id; },
   });
   styleSel.addEventListener('change', () => promptPanel.refresh());
   const aiNote = h('div', { class: 'muted', style: 'font-size:13px' });
@@ -214,7 +208,7 @@ export async function mount(root, projectId) {
   refreshAiNote();
 
   const runAi = async (mode) => {
-    const prompt = promptPanel.compose().trim();
+    const prompt = promptPanel.compose(mode).trim();
     if (prompt.length < 3) return toast('Pick some options or write what you want first', 'error');
     if (mode === 'new' && editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm('Replace the current song with a new one?')) return;
     aiBtnNew.disabled = aiBtnEdit.disabled = true;
@@ -230,6 +224,7 @@ export async function mount(root, projectId) {
         await editor.typeIn(res.code, { cps: 160, onLine: (t) => player.sync(t.slice(0, t.lastIndexOf('\n') + 1)) });
         editor.onChange?.(editor.value);
       }
+      if (mode === 'edit') promptPanel.clearEdits();
       if (res.tempoAdjusted) toast(`Tempo adjusted to fit ${STYLE_BY_ID[res.style]?.name ?? 'the style'}.`, 'info');
       if (res.warnings?.length) toast(`Generated with ${res.warnings.length} warning(s). Check the editor.`, 'info');
       else toast('Done. Press play to listen.', 'ok');
@@ -362,9 +357,9 @@ export async function mount(root, projectId) {
     h('div', { class: 'pane', 'data-pane': 'voices' }, h('h3', {}, 'Voices'), voicesPanel.el));
   const center = h('main', { class: 'center', 'data-pane': 'play' }, scope.el, transport.el, tempoBar.el,
     h('div', { class: 'term' }, h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'song.pulse')), editor.el, diag), patternEditor.el);
-  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('img', { class: 'ai-head', src: '/img/ai-panel.jpg', alt: '' }), h('h3', {}, 'AI assistant'), styleSel, promptPanel.el, aiPrompt,
+  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('img', { class: 'ai-head', src: '/img/ai-panel.jpg', alt: '' }), h('h3', {}, 'AI assistant'), styleSel, aiPrompt,
     h('div', { class: 'row' }, aiBtnNew, aiBtnEdit, h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')), aiNote,
-    h('div', { class: 'hint-list' }, PROMPT_IDEAS.map((t) => h('button', { type: 'button', onclick: () => { aiPrompt.value = t; aiPrompt.focus(); } }, t))), reference);
+    promptPanel.el, reference);
   // Bottom navigation (phones): one panel at a time.
   const TABS = [['songs', '♫', 'Songs'], ['mixer', '🎚', 'Mixer'], ['play', '▶', 'Play'], ['voices', '🎙', 'Voices'], ['ai', '✨', 'AI']];
   const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
