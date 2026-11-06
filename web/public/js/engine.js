@@ -17,6 +17,7 @@ import {
   audibleSet,
   trackSignature,
   songInstruments,
+  voiceKey,
 } from '/shared/lang/plan.js';
 import { DRUMS } from '/shared/lang/spec.js';
 
@@ -34,8 +35,42 @@ function noteName(n) {
   return n[0].toUpperCase() + n.slice(1);
 }
 
+// Decoded AI voice clips, keyed by voiceKey(). Filled by voices.js; read by every SongCore (live and offline).
+export const voiceBuffers = new Map();
+
 function makeVoice(instrument, wave) {
   const tonal = WAVE_TO_TONE[wave];
+
+  // Spoken clips ----------------------------------------------------------
+  if (instrument === 'voice') {
+    const out = new Tone.Gain(1);
+    // Native context captured now: during an offline render it is the offline one.
+    const raw = Tone.getContext().rawContext;
+    const live = new Set();
+    return {
+      out,
+      trigger(time, ev) {
+        if (!ev.buffer) return;
+        const src = raw.createBufferSource();
+        src.buffer = ev.buffer;
+        Tone.connect(src, out);
+        src.start(time);
+        live.add(src);
+        src.onended = () => live.delete(src);
+      },
+      release() {
+        for (const s of live) {
+          try {
+            s.stop();
+          } catch {
+            // already stopped
+          }
+        }
+        live.clear();
+      },
+      dispose: () => out.dispose(),
+    };
+  }
 
   // Drums ---------------------------------------------------------------
   if (instrument === 'kick') {
@@ -394,6 +429,11 @@ class Chain {
 // Song core: shared by live playback and offline rendering.
 // ---------------------------------------------------------------------------
 
+// A voice line behaves like a track with no steps (so it shares the effect chain code).
+function voiceTrack(v) {
+  return { instrument: 'voice', wave: null, steps: [], effects: v.effects ?? [] };
+}
+
 class SongCore {
   constructor({ live }) {
     this.live = live;
@@ -532,6 +572,18 @@ class SongCore {
       }
     }
 
+    // Spoken clips start at the beginning of their bar.
+    if (!this.only || this.only === 'voice') {
+      for (const v of section.voices ?? []) {
+        if (v.bar !== barInSection + 1 || !audible('voice')) continue;
+        const buffer = voiceBuffers.get(voiceKey(v));
+        if (!buffer) continue; // not generated yet: stays silent
+        const chain = this.chainFor(voiceTrack(v), section, barIndex);
+        chain.applyBar(time, every.get('voice'));
+        chain.voice.trigger(time, { buffer });
+      }
+    }
+
     // Free chains that have not been used for a while (their reverb tails have finished by then).
     // Only live playback does this: an offline render creates everything up front.
     for (const [sig, chain] of this.live ? this.chains : []) {
@@ -548,6 +600,9 @@ class SongCore {
     for (const section of ast.sections) {
       for (const track of section.tracks) {
         if (!this.only || track.instrument === this.only) this.chainFor(track, section, 0);
+      }
+      if (!this.only || this.only === 'voice') {
+        for (const v of section.voices ?? []) this.chainFor(voiceTrack(v), section, 0);
       }
     }
   }

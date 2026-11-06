@@ -57,6 +57,8 @@ The name is one constant in `web/public/js/config.js` (`APP_NAME`) plus the `APP
 
 ## Costs
 
+AI voices are spoken (not sung) by OpenAI's text-to-speech and are created only when a user presses Generate; clips are cached in `data/voices` (back it up or let it regenerate), each user has a monthly voice quota and the cost counts toward `AI_MONTHLY_BUDGET_USD`. Microphone takes are recorded in the browser and stored only in that browser (nothing is uploaded).
+
 Everything runs on your VPS. The only variable cost is OpenAI. To choose the model, run `npm run ai:models` (lists what your key can use), set `OPENAI_MODEL`, and update `OPENAI_PRICE_*` to that model's prices. A stronger model writes better songs but costs more per generation, so watch `/api/admin/usage`. Three layers limit it: the credit limit in the OpenAI dashboard, `AI_MONTHLY_BUDGET_USD` (stops the whole app), and the per-user quota. Spend is an estimate based on `OPENAI_PRICE_*`, so keep those prices up to date.
 
 ## Tests

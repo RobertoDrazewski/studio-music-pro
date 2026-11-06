@@ -51,7 +51,22 @@ export const api = {
   shareProject: (id, enabled) => request('POST', `/api/projects/${id}/share`, { enabled }),
   sharedSong: (slug) => request('GET', `/api/share/${encodeURIComponent(slug)}`, undefined, { quiet401: true }),
 
-  generate: (prompt, code) => request('POST', '/api/ai/generate', code ? { prompt, code } : { prompt }),
+  generate: (prompt, code, style) => request('POST', '/api/ai/generate', { prompt, ...(code ? { code } : {}), ...(style ? { style } : {}) }),
+
+  // Returns { blob, cached } or throws ApiError (404 VOICE_NOT_CACHED when onlyCached and missing).
+  voice: async ({ text, voice, style, onlyCached }) => {
+    const res = await fetch('/api/ai/voice', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, style: style || '', onlyCached: !!onlyCached }),
+    });
+    if (!res.ok) {
+      let data = null;
+      try { data = await res.json(); } catch { /* not json */ }
+      if (res.status === 401) window.dispatchEvent(new CustomEvent('auth:expired'));
+      throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.code);
+    }
+    return { blob: await res.blob(), cached: res.headers.get('X-Voice-Cached') === '1' };
+  },
 
   presets: () => request('GET', '/api/master/presets'),
   startUpload: () => request('POST', '/api/master/uploads', {}),

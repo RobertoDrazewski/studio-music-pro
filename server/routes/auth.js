@@ -43,6 +43,7 @@ export function authRoutes({ db, config, auth, quota }) {
       quota: {
         ai: quota.aiStatus(req.user),
         master: quota.masterStatus(req.user),
+        voice: quota.voiceStatus(req.user),
       },
     });
   });

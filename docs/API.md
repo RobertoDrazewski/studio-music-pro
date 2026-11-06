@@ -19,7 +19,7 @@ Errors always have the shape `{ "error": "message", "code"?: "MACHINE_CODE" }`.
 |---|---|---|---|
 | POST | `/auth/login` | `{ email, password }` | 10 failed attempts / 15 min / IP |
 | POST | `/auth/logout` | | |
-| GET | `/auth/me` | | `{ user, mode, quota: { ai, master } }` |
+| GET | `/auth/me` | | `{ user, mode, quota: { ai, master, voice } }` |
 | POST | `/auth/change-password` | `{ currentPassword, newPassword }` | min 10 chars. Required after a temporary password |
 
 ## Super admin (role `superadmin` only)
@@ -49,7 +49,8 @@ Errors always have the shape `{ "error": "message", "code"?: "MACHINE_CODE" }`.
 |---|---|---|---|
 | GET | `/ai/guide` | | language reference text |
 | GET | `/ai/quota` | | |
-| POST | `/ai/generate` | `{ prompt, code? }` | `code` present = edit that song. Returns `{ code, warnings, quota }`. The code is always valid for the Pulse parser |
+| POST | `/ai/voice` | `{ text, voice: female\|male, style?, onlyCached? }` | Returns `audio/mpeg`. Cached by content (header `X-Voice-Cached`); a cached clip is free. `onlyCached` never spends (404 `VOICE_NOT_CACHED`). 429 `VOICE_QUOTA_EXCEEDED`, 503 `AI_BUDGET_EXCEEDED` |
+| POST | `/ai/generate` | `{ prompt, code?, style? }` | `code` present = edit that song. Returns `{ code, warnings, quota }`. The code is always valid for the Pulse parser |
 
 ## Master and export
 The browser renders the song offline and uploads WAV files. Cloudflare rejects request bodies over 100 MB, so the web app sends **each file in its own request** (upload session). A single multipart request also works for scripts and small files.

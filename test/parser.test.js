@@ -91,3 +91,39 @@ test('master only allows master-safe effects', () => {
   assert.equal(parse('master reverb 0.2').ok, true);
   assert.equal(parse('master bitcrush 8').ok, false);
 });
+
+test('voice lines: text, gender, bar, style and effects', async () => {
+  const { parse } = await import('../shared/lang/parser.js');
+  const r = parse('section a 8\n  kick "x . . ."\n  voice "Jah love" male bar 3 style "slow and deep" reverb 0.5 delay 0.7');
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  const v = r.ast.sections[0].voices[0];
+  assert.deepEqual({ text: v.text, voice: v.voice, bar: v.bar, style: v.style }, { text: 'Jah love', voice: 'male', bar: 3, style: 'slow and deep' });
+  assert.deepEqual(v.effects.map((e) => e.name), ['reverb', 'delay']);
+  // defaults
+  const d = parse('section a 4\n  voice "hello"').ast.sections[0].voices[0];
+  assert.deepEqual({ voice: d.voice, bar: d.bar, style: d.style }, { voice: 'female', bar: 1, style: '' });
+});
+
+test('voice lines: errors and warnings', async () => {
+  const { parse } = await import('../shared/lang/parser.js');
+  assert.equal(parse('voice hello').ok, false);
+  assert.equal(parse('voice ""').ok, false);
+  assert.equal(parse('voice "x" robot').ok, false); // unknown word is treated as an effect name
+  assert.equal(parse('voice "x" female bar 0').ok, false);
+  assert.equal(parse('voice "x" female sidechain kick').ok, false);
+  assert.equal(parse('voice "' + 'a'.repeat(201) + '"').ok, false);
+  const late = parse('section a 2\n  voice "x" female bar 5');
+  assert.equal(late.ok, true);
+  assert.equal(late.warnings.length, 1);
+  const many = Array.from({ length: 9 }, () => 'voice "x"').join('\n');
+  assert.equal(parse('section a 4\n' + many).ok, false);
+});
+
+test('mic lines: recorded takes', () => {
+  const r = parse('section a 4\n  kick "x . . ."\n  mic "lead vocal" bar 2 reverb 0.4');
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  const v = r.ast.sections[0].voices[0];
+  assert.deepEqual({ text: v.text, voice: v.voice, bar: v.bar }, { text: 'lead vocal', voice: 'mic', bar: 2 });
+  assert.equal(parse('mic lead').ok, false);
+  assert.equal(parse('mic "x" bar 0').ok, false);
+});

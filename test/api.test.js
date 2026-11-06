@@ -161,7 +161,7 @@ test('AI: generates valid code, strips markdown fences and enforces the per-user
   const u = await createUser(app.base, admin, { email: 'ai1@example.com', aiMonthlyQuota: 2 });
 
   fake.state.replies.push('```pulse\n' + VALID + '\n```');
-  const r1 = await u.client.post('/api/ai/generate', { prompt: 'dark techno with a deep bass' });
+  const r1 = await u.client.post('/api/ai/generate', { prompt: 'dark and heavy with a deep bass' });
   assert.equal(r1.status, 200);
   assert.equal(r1.data.code, VALID);
   assert.equal(r1.data.quota.remaining, 1);
@@ -186,7 +186,7 @@ test('AI: repairs invalid output once, fails cleanly if still invalid and does n
   const u = await createUser(app.base, admin, { email: 'ai2@example.com', aiMonthlyQuota: 5 });
 
   fake.state.replies.push(INVALID, VALID);
-  const repaired = await u.client.post('/api/ai/generate', { prompt: 'something chill' });
+  const repaired = await u.client.post('/api/ai/generate', { prompt: 'something calm and warm' });
   assert.equal(repaired.status, 200);
   assert.equal(repaired.data.code, VALID);
   const repairMessage = fake.state.requests.at(-1).body.messages[1].content;
@@ -241,7 +241,7 @@ test('AI: input validation', async () => {
   const admin = await loginAdmin(app.base);
   const u = await createUser(app.base, admin, { email: 'ai5@example.com' });
   assert.equal((await u.client.post('/api/ai/generate', { prompt: 'a' })).status, 400);
-  assert.equal((await u.client.post('/api/ai/generate', { prompt: 'x'.repeat(700) })).status, 400);
+  assert.equal((await u.client.post('/api/ai/generate', { prompt: 'x'.repeat(1600) })).status, 400);
   assert.equal((await client(app.base).post('/api/ai/generate', { prompt: 'valid prompt' })).status, 401);
 });
 
@@ -268,4 +268,116 @@ test('language guide requires login', async () => {
   const admin = await loginAdmin(app.base);
   assert.equal((await client(app.base).get('/api/ai/guide')).status, 401);
   assert.match((await admin.get('/api/ai/guide')).data.guide, /GLOBAL COMMANDS/);
+});
+
+test('AI: style detection adds the style brief and the tempo guard fixes the tempo', async () => {
+  const big = await startApp({ openaiUrl: fake.url, env: { AI_MONTHLY_BUDGET_USD: '1000' } });
+  const admin = await loginAdmin(big.base);
+  const u = await createUser(big.base, admin, { email: 'ai-style@example.com', aiMonthlyQuota: 10 });
+  try {
+
+  // VALID is at 120 bpm: a reggae dub must not stay there.
+  fake.state.replies.push(VALID);
+  const dub = await u.client.post('/api/ai/generate', { prompt: 'quiero un reggae dub lento' });
+  assert.equal(dub.status, 200);
+  assert.equal(dub.data.style, 'dub');
+  assert.equal(dub.data.tempoAdjusted, true);
+  assert.match(dub.data.code, /^bpm 70$/m);
+  const userMsg = fake.state.requests.at(-1).body.messages[1].content;
+  assert.match(userMsg, /STYLE: Reggae Dub/);
+  assert.match(userMsg, /ONE DROP/);
+
+  // An explicit tempo from the user wins over the style.
+  fake.state.replies.push(VALID);
+  const explicit = await u.client.post('/api/ai/generate', { prompt: 'techno at 140 bpm' });
+  assert.match(explicit.data.code, /^bpm 140$/m);
+
+  // The style picker overrides detection; "none" turns the style off.
+  fake.state.replies.push(VALID);
+  const picked = await u.client.post('/api/ai/generate', { prompt: 'something nice', style: 'drum-and-bass' });
+  assert.equal(picked.data.style, 'drum-and-bass');
+  assert.match(picked.data.code, /^bpm 174$/m);
+
+  fake.state.replies.push(VALID);
+  const none = await u.client.post('/api/ai/generate', { prompt: 'a house track', style: 'none' });
+  assert.equal(none.data.style, null);
+  assert.match(none.data.code, /^bpm 120$/m);
+
+  assert.equal((await u.client.post('/api/ai/generate', { prompt: 'anything', style: 'polka' })).status, 400);
+  } finally {
+    await big.stop();
+  }
+});
+
+test('AI voices: cache is free, quota counts only generated clips, budget and validation apply', async () => {
+  const big = await startApp({ openaiUrl: fake.url, env: { AI_MONTHLY_BUDGET_USD: '1000' } });
+  const admin = await loginAdmin(big.base);
+  const u = await createUser(big.base, admin, { email: 'voice1@example.com', voiceMonthlyQuota: 2 });
+  try {
+    const before = fake.state.requests.length;
+
+    // Never generated: onlyCached must answer 404 and spend nothing.
+    const miss = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', onlyCached: true });
+    assert.equal(miss.status, 404);
+    assert.equal(miss.data.code, 'VOICE_NOT_CACHED');
+    assert.equal(fake.state.requests.length, before);
+
+    // First real generation calls OpenAI with the mapped voice and the style as instructions.
+    const a = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep' });
+    assert.equal(a.status, 200);
+    assert.equal(a.headers.get('content-type'), 'audio/mpeg');
+    assert.equal(a.headers.get('x-voice-cached'), '0');
+    assert.ok(a.data.byteLength > 100);
+    const sent = fake.state.requests.at(-1);
+    assert.match(sent.url, /audio\/speech$/);
+    assert.equal(sent.body.voice, big.config.openai.ttsVoiceMale);
+    assert.equal(sent.body.instructions, 'slow and deep');
+
+    // Same phrase again: served from cache, no new OpenAI call, no quota used.
+    const again = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep' });
+    assert.equal(again.headers.get('x-voice-cached'), '1');
+    const peek = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep', onlyCached: true });
+    assert.equal(peek.status, 200);
+    assert.equal(fake.state.requests.length, before + 1);
+
+    // Quota: 2 per month, the cached replay did not count.
+    assert.equal((await u.client.post('/api/ai/voice', { text: 'One love', voice: 'female' })).status, 200);
+    const over = await u.client.post('/api/ai/voice', { text: 'Third phrase', voice: 'female' });
+    assert.equal(over.status, 429);
+    assert.equal(over.data.code, 'VOICE_QUOTA_EXCEEDED');
+    // A cached clip is still playable after the quota ran out.
+    assert.equal((await u.client.post('/api/ai/voice', { text: 'One love', voice: 'female' })).status, 200);
+
+    const me = await u.client.get('/api/auth/me');
+    assert.equal(me.data.quota.voice.used, 2);
+    assert.equal(me.data.quota.voice.remaining, 0);
+
+    // Validation.
+    assert.equal((await u.client.post('/api/ai/voice', { text: '', voice: 'female' })).status, 400);
+    assert.equal((await u.client.post('/api/ai/voice', { text: 'x'.repeat(201), voice: 'female' })).status, 400);
+    assert.equal((await u.client.post('/api/ai/voice', { text: 'hola', voice: 'robot' })).status, 400);
+  } finally {
+    await big.stop();
+  }
+});
+
+test('AI voices: counted in the global budget, admin can set the voice quota', async () => {
+  const tiny = await startApp({ openaiUrl: fake.url, env: { AI_MONTHLY_BUDGET_USD: '0.0001' } });
+  const admin = await loginAdmin(tiny.base);
+  const u = await createUser(tiny.base, admin, { email: 'voice2@example.com', voiceMonthlyQuota: 5 });
+  try {
+    assert.equal((await u.client.post('/api/ai/voice', { text: 'a'.repeat(100), voice: 'female' })).status, 200);
+    const blocked = await u.client.post('/api/ai/voice', { text: 'another phrase', voice: 'female' });
+    assert.equal(blocked.status, 503);
+    assert.equal(blocked.data.code, 'AI_BUDGET_EXCEEDED');
+
+    const list = await admin.get('/api/admin/users');
+    const row = list.data.users.find((x) => x.email === 'voice2@example.com');
+    assert.equal(row.voiceMonthlyQuota, 5);
+    assert.equal(row.usage.voice.used, 1);
+    const patched = await admin.patch(`/api/admin/users/${row.id}`, { voiceMonthlyQuota: 9 });
+    assert.equal(patched.data.user.voiceMonthlyQuota, 9);
+  } finally {
+    await tiny.stop();
+  }
 });

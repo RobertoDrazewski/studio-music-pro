@@ -1,12 +1,17 @@
 {
+  "id": "/studio",
   "name": "Pulse Studio",
   "short_name": "Pulse",
+  "description": "Make music by typing code. Edit it while it plays, let AI write the first draft and export a mastered track.",
   "start_url": "/studio",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#05090f",
   "theme_color": "#05090f",
+  "categories": ["music", "productivity"],
   "icons": [
-    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }

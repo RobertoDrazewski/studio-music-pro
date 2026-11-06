@@ -59,4 +59,11 @@ export const LIMITS = {
   maxRepeat: 8,
   maxSections: 16,
   maxTracksPerSection: 16,
+  maxVoices: 8,
+  maxVoiceChars: 200,
+  maxVoiceStyleChars: 120,
 };
+
+// Spoken voice clips ("voice" command): generated with the OpenAI speech API.
+export const VOICES = ['female', 'male'];
+export const VOICE_EFFECTS = ['lowpass', 'highpass', 'bandpass', 'delay', 'reverb', 'distort', 'bitcrush', 'chorus', 'phaser', 'vol', 'pan'];

@@ -21,6 +21,7 @@ import { masterRoutes } from './routes/master.js';
 export async function createApp(config, { fetchImpl } = {}) {
   fs.mkdirSync(config.jobsDir, { recursive: true });
   fs.mkdirSync(config.tmpDir, { recursive: true });
+  fs.mkdirSync(config.voiceDir, { recursive: true });
 
   const db = openDb(config.dbPath);
   const auth = createAuth({ db, config });
@@ -136,6 +137,11 @@ export async function createApp(config, { fetchImpl } = {}) {
       res.type('html').send(withMeta(req, `${row.title} · ${config.appName}`, `A song by ${row.author}, written as code and played in the browser.`));
     });
 
+    // The service worker must never be served from a stale cache, or app updates would not arrive.
+    app.get('/sw.js', (_req, res) => {
+      res.set('Cache-Control', 'no-cache');
+      res.type('application/javascript').sendFile(path.join(config.webDir, 'sw.js'));
+    });
     app.use(express.static(config.webDir, staticOpts));
     app.get(/^(?!\/(api|shared|vendor)\/).*/, (_req, res) => {
       res.set('Cache-Control', 'no-cache');

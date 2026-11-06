@@ -99,6 +99,23 @@ export function trackSignature(track, section) {
   return JSON.stringify([track.instrument, track.wave, track.effects, [...new Set(everyFx)].sort()]);
 }
 
+// Stable identity of a spoken clip (what is said, by whom, how). Same on the server (cache) and in the browser.
+export function voiceKey(v) {
+  return JSON.stringify([v.voice, v.style ?? '', v.text]);
+}
+
+// Every distinct clip of the song, in order.
+export function songVoices(ast) {
+  const seen = new Map();
+  for (const section of ast.sections) {
+    for (const v of section.voices ?? []) {
+      const key = voiceKey(v);
+      if (!seen.has(key)) seen.set(key, { key, text: v.text, voice: v.voice, style: v.style, line: v.line });
+    }
+  }
+  return [...seen.values()];
+}
+
 // Names of the distinct instruments that appear anywhere in the song (used for stems).
 export function songInstruments(ast) {
   const seen = [];
@@ -107,5 +124,7 @@ export function songInstruments(ast) {
       if (!seen.includes(track.instrument)) seen.push(track.instrument);
     }
   }
+  // Spoken clips count as one more "instrument" so they can be muted, soloed and exported as a stem.
+  if (ast.sections.some((s) => (s.voices ?? []).length)) seen.push('voice');
   return seen;
 }

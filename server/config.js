@@ -52,6 +52,7 @@ export function loadConfig(overrides = {}) {
     appName: env.APP_NAME || 'Pulse Studio',
     dataDir,
     dbPath: path.join(dataDir, 'studio.db'),
+    voiceDir: path.join(dataDir, 'voices'),
     jobsDir: path.join(dataDir, 'jobs'),
     tmpDir: path.join(dataDir, 'tmp'),
 
@@ -71,9 +72,10 @@ export function loadConfig(overrides = {}) {
     limits: {
       defaultAiMonthlyQuota: int(env.DEFAULT_AI_MONTHLY_QUOTA, 20),
       defaultMasterDailyQuota: int(env.DEFAULT_MASTER_DAILY_QUOTA, 5),
+      defaultVoiceMonthlyQuota: int(env.DEFAULT_VOICE_MONTHLY_QUOTA, 10),
       maxProjectsPerUser: int(env.MAX_PROJECTS_PER_USER, 100),
       maxCodeBytes: int(env.MAX_CODE_BYTES, 50_000),
-      maxPromptChars: int(env.MAX_PROMPT_CHARS, 600),
+      maxPromptChars: int(env.MAX_PROMPT_CHARS, 1500),
     },
 
     openai: {
@@ -91,6 +93,13 @@ export function loadConfig(overrides = {}) {
       priceOutPerM: num(env.OPENAI_PRICE_OUT_PER_M, 0.6),
       // Hard stop for the whole app, on top of the limit set in the OpenAI dashboard.
       monthlyBudgetUsd: num(env.AI_MONTHLY_BUDGET_USD, 5),
+      // Text to speech for the "voice" command. Generated clips are cached on disk by content,
+      // so the same phrase is only paid once.
+      ttsModel: env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+      ttsVoiceFemale: env.OPENAI_TTS_VOICE_FEMALE || 'coral',
+      ttsVoiceMale: env.OPENAI_TTS_VOICE_MALE || 'onyx',
+      // USD per 1000 characters, used only to estimate spend (approximate: check openai.com/api/pricing).
+      ttsPricePer1kChars: num(env.OPENAI_TTS_PRICE_PER_1K_CHARS, 0.02),
     },
 
     master: {

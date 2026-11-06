@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { h, clear, toast } from './dom.js';
 import { APP_NAME } from './config.js';
+import { registerServiceWorker } from './install.js';
 
 const state = { user: null, mode: 'trial', quota: null };
 let cleanup = null;
@@ -89,6 +90,8 @@ window.addEventListener('auth:expired', () => {
   navigate('/login', { replace: true });
 });
 window.addEventListener('auth:must-change', () => navigate('/login', { replace: true }));
+
+registerServiceWorker();
 
 window.addEventListener('DOMContentLoaded', () => {
   // Tone.js loads with `defer` before this module runs, but guard anyway.

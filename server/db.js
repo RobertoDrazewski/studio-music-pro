@@ -58,6 +58,11 @@ const MIGRATIONS = [
   );
   CREATE INDEX idx_jobs_user ON jobs(user_id, created_at DESC);
   `,
+  // 2: AI voices (text to speech). Voice generations are logged in ai_usage with kind = 'voice'.
+  `
+  ALTER TABLE users ADD COLUMN voice_monthly_quota INTEGER NOT NULL DEFAULT 10;
+  ALTER TABLE ai_usage ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat';
+  `,
 ];
 
 export function openDb(dbPath) {

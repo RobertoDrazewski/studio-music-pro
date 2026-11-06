@@ -32,6 +32,7 @@ export function publicUser(u) {
     mustChangePassword: !!u.must_change_password,
     aiMonthlyQuota: u.ai_monthly_quota,
     masterDailyQuota: u.master_daily_quota,
+    voiceMonthlyQuota: u.voice_monthly_quota,
     createdAt: u.created_at,
     lastLoginAt: u.last_login_at,
   };

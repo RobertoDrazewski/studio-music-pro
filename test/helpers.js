@@ -9,12 +9,16 @@ export const ADMIN = { email: 'boss@example.com', password: 'a-very-long-admin-p
 
 // Fake OpenAI server: `state.replies` is a queue of strings (or functions returning {status, body}).
 export async function startFakeOpenAI() {
-  const state = { replies: [], requests: [], usage: { prompt_tokens: 1000, completion_tokens: 200 } };
+  const state = { audio: null, replies: [], requests: [], usage: { prompt_tokens: 1000, completion_tokens: 200 } };
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', (d) => (raw += d));
     req.on('end', () => {
       state.requests.push({ url: req.url, headers: req.headers, body: JSON.parse(raw || '{}') });
+      if (req.url.endsWith('/audio/speech')) {
+        res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
+        return res.end(state.audio ?? Buffer.alloc(400, 7));
+      }
       const next = state.replies.shift();
       if (typeof next === 'function') {
         const { status, body } = next();

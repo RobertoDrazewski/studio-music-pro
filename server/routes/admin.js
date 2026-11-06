@@ -13,6 +13,7 @@ export function adminRoutes({ db, config, auth, quota }) {
       ...publicUser(user),
       usage: {
         ai: quota.aiStatus(user),
+        voice: quota.voiceStatus(user),
         master: quota.masterStatus(user),
         projects: db.prepare('SELECT COUNT(*) AS n FROM projects WHERE user_id = ?').get(user.id).n,
       },
@@ -29,6 +30,7 @@ export function adminRoutes({ db, config, auth, quota }) {
     name: z.string().trim().min(1).max(80),
     aiMonthlyQuota: z.number().int().min(0).max(100000).optional(),
     masterDailyQuota: z.number().int().min(0).max(1000).optional(),
+    voiceMonthlyQuota: z.number().int().min(0).max(10000).optional(),
     plan: z.string().trim().min(1).max(30).optional(),
   });
 
@@ -42,8 +44,8 @@ export function adminRoutes({ db, config, auth, quota }) {
     const hash = await auth.hashPassword(temporaryPassword);
     const info = db
       .prepare(
-        `INSERT INTO users (email, name, password_hash, role, plan, must_change_password, ai_monthly_quota, master_daily_quota)
-         VALUES (?, ?, ?, 'user', ?, 1, ?, ?)`,
+        `INSERT INTO users (email, name, password_hash, role, plan, must_change_password, ai_monthly_quota, master_daily_quota, voice_monthly_quota)
+         VALUES (?, ?, ?, 'user', ?, 1, ?, ?, ?)`,
       )
       .run(
         body.email,
@@ -52,6 +54,7 @@ export function adminRoutes({ db, config, auth, quota }) {
         body.plan ?? 'trial',
         body.aiMonthlyQuota ?? config.limits.defaultAiMonthlyQuota,
         body.masterDailyQuota ?? config.limits.defaultMasterDailyQuota,
+        body.voiceMonthlyQuota ?? config.limits.defaultVoiceMonthlyQuota,
       );
     const user = getUser.get(info.lastInsertRowid);
     res.status(201).json({ user: withUsage(user), temporaryPassword });
@@ -63,6 +66,7 @@ export function adminRoutes({ db, config, auth, quota }) {
       active: z.boolean(),
       aiMonthlyQuota: z.number().int().min(0).max(100000),
       masterDailyQuota: z.number().int().min(0).max(1000),
+      voiceMonthlyQuota: z.number().int().min(0).max(10000),
       plan: z.string().trim().min(1).max(30),
     })
     .partial();
@@ -84,6 +88,7 @@ export function adminRoutes({ db, config, auth, quota }) {
       active: 'active',
       aiMonthlyQuota: 'ai_monthly_quota',
       masterDailyQuota: 'master_daily_quota',
+      voiceMonthlyQuota: 'voice_monthly_quota',
       plan: 'plan',
     };
     const sets = [];

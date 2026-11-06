@@ -15,6 +15,8 @@ import {
   GLOBALS,
   SCALES,
   LIMITS,
+  VOICES,
+  VOICE_EFFECTS,
 } from './spec.js';
 
 const NOTE_RE = /^([a-g])(#|b)?(-?\d)$/;
@@ -190,7 +192,7 @@ export function parse(source) {
   const ensureSection = () => {
     if (current) return current;
     if (!implicit) {
-      implicit = { name: 'main', bars: 8, tracks: [], every: [], implicit: true, line: 0 };
+      implicit = { name: 'main', bars: 8, tracks: [], every: [], voices: [], implicit: true, line: 0 };
       ast.sections.push(implicit);
     }
     return implicit;
@@ -255,7 +257,7 @@ export function parse(source) {
 
     if (cmd === 'mute' || cmd === 'solo') {
       const names = tokens.slice(1).map((t) => t.value.toLowerCase());
-      if (!names.length || !names.every((n) => INSTRUMENTS.includes(n))) {
+      if (!names.length || !names.every((n) => INSTRUMENTS.includes(n) || n === 'voice')) {
         ctx.error(`Usage: ${cmd} <instrument> [instrument...]`);
         return;
       }
@@ -286,7 +288,7 @@ export function parse(source) {
         ctx.error(`Too many sections (max ${LIMITS.maxSections})`);
         return;
       }
-      current = { name, bars, tracks: [], every: [], line: lineNo };
+      current = { name, bars, tracks: [], every: [], voices: [], line: lineNo };
       ast.sections.push(current);
       return;
     }
@@ -322,6 +324,96 @@ export function parse(source) {
         return;
       }
       ensureSection().every.push({ every: n, instrument: inst, effects, line: lineNo });
+      return;
+    }
+
+    // ---- your own recordings: mic "take name" [bar N] [effects...] ----------------------------
+    if (cmd === 'mic') {
+      const nameTok = tokens[1];
+      if (!nameTok || nameTok.type !== 'string' || !nameTok.value.trim()) {
+        ctx.error('Usage: mic "take name" [bar N] [reverb 0.3]  (record takes with the Record button in the Voices panel)');
+        return;
+      }
+      let i = 2;
+      let bar = 1;
+      if (tokens[i] && tokens[i].type === 'word' && tokens[i].value.toLowerCase() === 'bar') {
+        const n = tokens[i + 1] && tokens[i + 1].type === 'word' ? parseNumber(tokens[i + 1].value) : null;
+        if (n === null || !Number.isInteger(n) || n < 1) {
+          ctx.error('"bar" needs a whole number, e.g. bar 3');
+          return;
+        }
+        bar = n;
+        i += 2;
+      }
+      const effects = parseEffects(tokens, i, VOICE_EFFECTS, ctx);
+      const consumed = effects.reduce((acc, e) => acc + 1 + e.args.length, 0);
+      if (i + consumed < tokens.length) return;
+      const section = ensureSection();
+      const total = ast.sections.reduce((n, s) => n + s.voices.length, 0);
+      if (total >= LIMITS.maxVoices) {
+        ctx.error(`Too many voice/mic lines (max ${LIMITS.maxVoices})`);
+        return;
+      }
+      if (bar > section.bars) warnings.push({ line: lineNo, message: `mic: bar ${bar} is outside section "${section.name}" (${section.bars} bars), it will not play` });
+      section.voices.push({ text: nameTok.value.trim(), voice: 'mic', bar, style: '', effects, line: lineNo });
+      return;
+    }
+
+    // ---- voice clips: voice "text" female|male [bar N] [style "tone"] [effects...] ----------
+    if (cmd === 'voice') {
+      const textTok = tokens[1];
+      if (!textTok || textTok.type !== 'string' || !textTok.value.trim()) {
+        ctx.error('Usage: voice "words to say" female|male [bar N] [style "slow, deep"] [reverb 0.4]');
+        return;
+      }
+      const text = textTok.value.trim();
+      if (text.length > LIMITS.maxVoiceChars) {
+        ctx.error(`Voice text too long (max ${LIMITS.maxVoiceChars} characters)`);
+        return;
+      }
+      let i = 2;
+      let voice = 'female';
+      let bar = 1;
+      let style = '';
+      if (tokens[i] && tokens[i].type === 'word' && VOICES.includes(tokens[i].value.toLowerCase())) {
+        voice = tokens[i].value.toLowerCase();
+        i++;
+      }
+      while (tokens[i] && tokens[i].type === 'word') {
+        const w = tokens[i].value.toLowerCase();
+        if (w === 'bar') {
+          const n = tokens[i + 1] && tokens[i + 1].type === 'word' ? parseNumber(tokens[i + 1].value) : null;
+          if (n === null || !Number.isInteger(n) || n < 1) {
+            ctx.error('"bar" needs a whole number, e.g. bar 3 (the bar of the section where the voice starts)');
+            return;
+          }
+          bar = n;
+          i += 2;
+        } else if (w === 'style') {
+          const s = tokens[i + 1];
+          if (!s || s.type !== 'string') {
+            ctx.error('"style" needs a quoted description, e.g. style "slow and deep"');
+            return;
+          }
+          if (s.value.length > LIMITS.maxVoiceStyleChars) {
+            ctx.error(`Voice style too long (max ${LIMITS.maxVoiceStyleChars} characters)`);
+            return;
+          }
+          style = s.value.trim();
+          i += 2;
+        } else break;
+      }
+      const effects = parseEffects(tokens, i, VOICE_EFFECTS, ctx);
+      const consumed = effects.reduce((acc, e) => acc + 1 + e.args.length, 0);
+      if (i + consumed < tokens.length) return;
+      const section = ensureSection();
+      const total = ast.sections.reduce((n, s) => n + s.voices.length, 0);
+      if (total >= LIMITS.maxVoices) {
+        ctx.error(`Too many voice lines (max ${LIMITS.maxVoices})`);
+        return;
+      }
+      if (bar > section.bars) warnings.push({ line: lineNo, message: `voice: bar ${bar} is outside section "${section.name}" (${section.bars} bars), it will not play` });
+      section.voices.push({ text, voice, bar, style, effects, line: lineNo });
       return;
     }
 

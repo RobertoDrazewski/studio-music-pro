@@ -54,7 +54,50 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
     };
   }
 
-  return { chat, model };
+  // Text to speech. Returns an MP3 Buffer.
+  async function speech({ input, voice, instructions }) {
+    if (!apiKey) throw new HttpError(503, 'AI voices are not configured on this server');
+    const { ttsModel } = config.openai;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetchImpl(`${baseUrl}/audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: ttsModel,
+          voice,
+          input,
+          response_format: 'mp3',
+          ...(instructions ? { instructions } : {}),
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') throw new HttpError(504, 'The voice service took too long. Try again.');
+      console.error('[openai] network error (speech):', err.message);
+      throw new HttpError(502, 'Could not reach the voice service');
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!response.ok) {
+      let detail = '';
+      try {
+        detail = (await response.json())?.error?.message ?? '';
+      } catch {
+        // ignore body parse errors
+      }
+      console.error(`[openai] speech HTTP ${response.status}: ${detail}`);
+      if (response.status === 429) throw new HttpError(503, 'The voice service is busy or its credit is exhausted. Try again later.');
+      throw new HttpError(502, 'The voice service returned an error');
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length < 100) throw new HttpError(502, 'The voice service returned an empty file');
+    return bytes;
+  }
+
+  return { chat, speech, model };
 }
 
 // Models sometimes wrap code in markdown fences despite instructions.

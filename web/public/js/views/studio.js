@@ -5,6 +5,11 @@ import { Player, createScope, createTransport } from '../player.js';
 import { DEMO_SONG } from '/shared/lang/demo.js';
 import { LIMITS } from '/shared/lang/spec.js';
 import { exportViaServer, exportWav } from '../export.js';
+import { STYLES, STYLE_BY_ID } from '/shared/lang/styles.js';
+import { createInstallButton } from '../install.js';
+import { createPromptPanel } from '../promptpanel.js';
+import { createVoicesPanel } from '../voices.js';
+import { makeEdit, createTempoBar, createMixer, createPatternEditor } from '../controls.js';
 import { session, navigate, link, brand } from '../main.js';
 
 const STARTER = `// New song. Press play, then edit while it runs.
@@ -22,11 +27,11 @@ section main 8
 `;
 
 const PROMPT_IDEAS = [
-  'Deep house at 122 bpm, warm bass and a dreamy pad',
-  'Dark techno, 132 bpm, driving kick and a distorted bass',
-  'Lo-fi chill beat with a soft pluck melody',
-  'Add a build-up before the drop',
-  'Make the bass heavier and the hats looser',
+  'Reggae dub, slow one drop with deep bass and delay on the skank',
+  'Dark techno with a hypnotic rumbling bass',
+  'Liquid drum and bass with a soft pad',
+  'Make it slower and add a build-up before the drop',
+  'Heavier bass and more space (reverb and delay)',
 ];
 
 export async function mount(root, projectId) {
@@ -91,33 +96,17 @@ export async function mount(root, projectId) {
   const scope = createScope(player);
   const transport = createTransport(player);
 
-  // ---------- mixer ----------
-  const mixer = h('div', { class: 'mixer' });
-  const renderMixer = () => {
-    const names = player.instruments;
-    const anySolo = player.solo.size > 0;
-    clear(mixer).append(
-      ...(names.length
-        ? names.map((n) =>
-            h('div', { class: `mix-row${player.mute.has(n) || (anySolo && !player.solo.has(n)) ? ' dim' : ''}` },
-              h('img', { src: `/img/instruments/${n}.png`, alt: '' }),
-              h('span', { class: 'nm' }, n),
-              h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
-              h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S')))
-        : [h('p', { class: 'muted' }, 'Instruments appear here when the code is valid.')]),
-    );
-  };
-  let lastNames = '';
+  // ---------- visual controls (all of them rewrite the code) ----------
+  const edit = makeEdit(editor);
+  const patternEditor = createPatternEditor({ player, edit, editor });
+  const mixerUi = createMixer({ player, edit, openPattern: (i) => patternEditor.open(i) });
+  const mixer = mixerUi.el;
+  const tempoBar = createTempoBar({ player, edit });
+  const voicesPanel = createVoicesPanel({ player, edit, editor, session });
   player.on((e) => {
-    if (e.type === 'parsed') {
-      renderDiag(e.result);
-      const key = player.instruments.join(',');
-      if (key !== lastNames) { lastNames = key; renderMixer(); }
-    }
-    if (e.type === 'mixer') renderMixer();
+    if (e.type === 'parsed') renderDiag(e.result);
     if (e.type === 'state') renderDiag(player.result);
   });
-  renderMixer();
 
   // ---------- title ----------
   const title = h('input', { class: 'title-input', value: project.title, maxlength: 100, 'aria-label': 'Song title' });
@@ -184,7 +173,35 @@ export async function mount(root, projectId) {
   };
 
   // ---------- AI ----------
-  const aiPrompt = h('textarea', { class: 'textarea', maxlength: 600, placeholder: 'Describe the music you want, or how to change this song…' });
+  const styleSel = h('select', { class: 'select', 'aria-label': 'Music style' },
+    h('option', { value: 'auto' }, 'Style: auto-detect from my text'),
+    STYLES.map((s) => h('option', { value: s.id }, `${s.name} (${s.bpm[0]}-${s.bpm[1]} bpm)`)));
+  const loadTemplate = async () => {
+    const style = STYLE_BY_ID[styleSel.value];
+    if (!style) return toast('Pick a style first', 'error');
+    if (editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm(`Replace the current code with the ${style.name} template?`)) return;
+    typingAbort?.abort();
+    typingAbort = new AbortController();
+    const mine = typingAbort;
+    try {
+      await window.Tone.start();
+      await editor.typeIn(style.example, {
+        cps: 90, signal: mine.signal,
+        onLine: (text) => {
+          const r = player.sync(text.slice(0, text.lastIndexOf('\n') + 1));
+          if (r.ok && player.playable && !player.playing && !mine.signal.aborted) player.play();
+        },
+      });
+      editor.onChange?.(editor.value);
+      if (!/\b(template|reference)\b/.test(title.value)) { title.value = `${style.name} template`; title.dispatchEvent(new Event('input')); }
+    } finally { if (typingAbort === mine) typingAbort = null; }
+  };
+  const aiPrompt = h('textarea', { class: 'textarea', maxlength: 600, placeholder: 'Write anything you want, in your own words. It is added to the clicks above.' });
+  const promptPanel = createPromptPanel({
+    freeText: aiPrompt,
+    getStyleName: () => STYLE_BY_ID[styleSel.value]?.name ?? '',
+  });
+  styleSel.addEventListener('change', () => promptPanel.refresh());
   const aiNote = h('div', { class: 'muted', style: 'font-size:13px' });
   const aiBtnNew = h('button', { class: 'btn primary', type: 'button' }, '✨ New song');
   const aiBtnEdit = h('button', { class: 'btn', type: 'button' }, 'Edit current');
@@ -197,14 +214,14 @@ export async function mount(root, projectId) {
   refreshAiNote();
 
   const runAi = async (mode) => {
-    const prompt = aiPrompt.value.trim();
-    if (prompt.length < 3) return toast('Describe what you want first', 'error');
+    const prompt = promptPanel.compose().trim();
+    if (prompt.length < 3) return toast('Pick some options or write what you want first', 'error');
     if (mode === 'new' && editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm('Replace the current song with a new one?')) return;
     aiBtnNew.disabled = aiBtnEdit.disabled = true;
     const old = aiNote.textContent;
     aiNote.textContent = 'Writing your song… (up to 30 seconds)';
     try {
-      const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined);
+      const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
       if (player.playing) {
         editor.setValue(res.code); // goes live on the next bar
@@ -213,6 +230,7 @@ export async function mount(root, projectId) {
         await editor.typeIn(res.code, { cps: 160, onLine: (t) => player.sync(t.slice(0, t.lastIndexOf('\n') + 1)) });
         editor.onChange?.(editor.value);
       }
+      if (res.tempoAdjusted) toast(`Tempo adjusted to fit ${STYLE_BY_ID[res.style]?.name ?? 'the style'}.`, 'info');
       if (res.warnings?.length) toast(`Generated with ${res.warnings.length} warning(s). Check the editor.`, 'info');
       else toast('Done. Press play to listen.', 'ok');
     } catch (e) {
@@ -331,19 +349,35 @@ export async function mount(root, projectId) {
   const logout = async () => { await flush(); await api.logout().catch(() => {}); session.clear(); navigate('/'); };
   const topbar = h('header', { class: 'topbar' }, brand(), title, saveState, h('span', { class: 'spacer' }),
     session.mode === 'trial' ? h('span', { class: 'chip ok', title: 'Invitation-only trial' }, 'trial') : null,
-    h('button', { class: 'btn small', onclick: typeDemo }, '⌨ Type the demo'),
+    h('button', { class: 'btn small hide-sm', onclick: typeDemo }, '⌨ Type the demo'),
+    createInstallButton(),
     h('button', { class: 'btn small', onclick: openShare }, 'Share'),
     h('button', { class: 'btn small primary', onclick: openExport }, 'Export'),
     user.role === 'superadmin' ? link('/admin', { class: 'btn small ghost' }, 'Admin') : null,
     h('button', { class: 'btn small ghost', onclick: logout, title: user.email }, `Sign out`));
 
-  const left = h('aside', { class: 'side' }, h('button', { class: 'btn', onclick: newProject }, '+ New song'), h('h3', {}, 'Your songs'), list, h('h3', {}, 'Mixer'), mixer);
-  const center = h('main', { class: 'center' }, scope.el, transport.el,
-    h('div', { class: 'term' }, h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'song.pulse')), editor.el, diag));
-  const right = h('aside', { class: 'side right' }, h('img', { class: 'ai-head', src: '/img/ai-panel.jpg', alt: '' }), h('h3', {}, 'AI assistant'), aiPrompt,
-    h('div', { class: 'row' }, aiBtnNew, aiBtnEdit), aiNote,
+  const left = h('aside', { class: 'side left' },
+    h('div', { class: 'pane', 'data-pane': 'songs' }, h('button', { class: 'btn', onclick: newProject }, '+ New song'), h('h3', {}, 'Your songs'), list),
+    h('div', { class: 'pane', 'data-pane': 'mixer' }, h('h3', {}, 'Mixer'), mixer),
+    h('div', { class: 'pane', 'data-pane': 'voices' }, h('h3', {}, 'Voices'), voicesPanel.el));
+  const center = h('main', { class: 'center', 'data-pane': 'play' }, scope.el, transport.el, tempoBar.el,
+    h('div', { class: 'term' }, h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'song.pulse')), editor.el, diag), patternEditor.el);
+  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('img', { class: 'ai-head', src: '/img/ai-panel.jpg', alt: '' }), h('h3', {}, 'AI assistant'), styleSel, promptPanel.el, aiPrompt,
+    h('div', { class: 'row' }, aiBtnNew, aiBtnEdit, h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')), aiNote,
     h('div', { class: 'hint-list' }, PROMPT_IDEAS.map((t) => h('button', { type: 'button', onclick: () => { aiPrompt.value = t; aiPrompt.focus(); } }, t))), reference);
-  root.append(h('div', { class: 'studio-page' }, topbar, h('div', { class: 'studio' }, left, center, right)));
+  // Bottom navigation (phones): one panel at a time.
+  const TABS = [['songs', '♫', 'Songs'], ['mixer', '🎚', 'Mixer'], ['play', '▶', 'Play'], ['voices', '🎙', 'Voices'], ['ai', '✨', 'AI']];
+  const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
+  const nav = h('nav', { class: 'bottom-nav', 'aria-label': 'Studio sections' });
+  const setTab = (id) => {
+    studio.dataset.tab = id;
+    for (const b of nav.children) b.setAttribute('aria-current', String(b.dataset.tab === id));
+    studio.scrollTop = 0;
+  };
+  for (const [id, icon, label] of TABS) {
+    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon), h('span', {}, label)));
+  }
+  root.append(h('div', { class: 'studio-page' }, topbar, studio, nav));
   renderList();
   title.addEventListener('input', renderList);
 

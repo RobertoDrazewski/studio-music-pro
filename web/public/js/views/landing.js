@@ -1,3 +1,4 @@
+import { createInstallButton } from '../install.js';
 import { h } from '../dom.js';
 import { Editor } from '../editor.js';
 import { Player, createScope } from '../player.js';
@@ -9,7 +10,7 @@ const INSTRUMENTS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc', 'bass', 
 
 export function mount(root) {
   const loggedIn = !!session.user;
-  const nav = h('header', { class: 'nav' }, brand(), h('span', { class: 'spacer' }),
+  const nav = h('header', { class: 'nav' }, brand(), h('span', { class: 'spacer' }), createInstallButton(),
     h('a', { href: '#demo', class: 'btn ghost small' }, 'Try the demo'),
     loggedIn ? link('/studio', { class: 'btn primary small' }, 'Open studio') : link('/login', { class: 'btn primary small' }, 'Sign in'));
 
