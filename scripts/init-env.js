@@ -23,8 +23,8 @@ const arg = (name) => {
 
 const email = arg('email') || 'admin@example.com';
 const password = arg('password') || crypto.randomBytes(12).toString('base64url');
-if (password.length < 10) {
-  console.error('The password must have at least 10 characters.');
+if (password.length < 12) {
+  console.error('The password must have at least 12 characters.');
   process.exit(1);
 }
 
