@@ -291,25 +291,32 @@ const NEUTRAL = { lowpass: 20000, highpass: 20, bandpass: 1000, delay: 0, reverb
 // Reverb = convolución con un impulso de ruido sintético que decae. Corre nativo en el
 // navegador (rápido, también offline) y no necesita samples. El ruido tiene semilla, así que
 // la reverb suena igual en la vista previa y en cada render.
-function makeReverb(wet) {
-  const ctx = Tone.getContext();
+// El impulso es idéntico para todas las reverbs (tiene semilla), así que lo genero una sola vez y lo comparto.
+// Antes cada pista lo sintetizaba de nuevo, y al entrar a una sección nueva eso trababa el audio.
+const impulses = new Map();
+function reverbImpulse(ctx) {
   const rate = ctx.sampleRate;
+  if (impulses.has(rate)) return impulses.get(rate);
   const seconds = 1.5;
   const length = Math.floor(rate * seconds);
   // Un solo canal para que la convolución sea barata (importa mucho en renders offline en compus lentas).
   const impulse = ctx.createBuffer(1, length, rate);
-  for (let c = 0; c < 1; c++) {
-    const data = impulse.getChannelData(c);
-    let seed = 0x9e3779b9 ^ (c * 0x85ebca6b);
-    let lp = 0;
-    for (let i = 0; i < length; i++) {
-      seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-      const noise = (seed >>> 0) / 4294967296 * 2 - 1;
-      const decay = Math.pow(1 - i / length, 3.2);
-      lp += (noise - lp) * 0.55; // amortiguación suave de agudos
-      data[i] = lp * decay;
-    }
+  const data = impulse.getChannelData(0);
+  let seed = 0x9e3779b9;
+  let lp = 0;
+  for (let i = 0; i < length; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+    const noise = (seed >>> 0) / 4294967296 * 2 - 1;
+    const decay = Math.pow(1 - i / length, 3.2);
+    lp += (noise - lp) * 0.55; // amortiguación suave de agudos
+    data[i] = lp * decay;
   }
+  impulses.set(rate, impulse);
+  return impulse;
+}
+
+function makeReverb(wet) {
+  const impulse = reverbImpulse(Tone.getContext());
   const input = new Tone.Gain(1);
   const output = new Tone.Gain(1);
   const dry = new Tone.Gain(1);
@@ -333,6 +340,15 @@ function makeReverb(wet) {
       [input, output, dry, wetGain, convolver].forEach((n) => n.dispose());
     },
   };
+}
+
+// ¿Este valor deja la señal tal cual? (sirve para no crear nodos inútiles)
+function isNeutral(name, v) {
+  if (v === undefined || v === null) return false;
+  if (name === 'lowpass') return v >= 20000;
+  if (name === 'highpass') return v <= 20;
+  if (['delay', 'reverb', 'distort', 'chorus', 'phaser'].includes(name)) return v === 0;
+  return false;
 }
 
 function makeEffect(name, value) {
@@ -395,6 +411,8 @@ class Chain {
     let prev = this.voice.out;
     for (const name of order) {
       if (!base.has(name) && !latent.has(name)) continue;
+      // Un efecto en su valor neutro (reverb 0, lowpass 20000...) no cambia el sonido: no gasto un nodo en armarlo.
+      if (!latent.has(name) && base.has(name) && isNeutral(name, base.get(name))) continue;
       const fx = makeEffect(name, base.get(name));
       if (!fx) continue;
       fx.base = base.has(name) ? base.get(name) : fx.neutral;
@@ -613,6 +631,10 @@ class SongCore {
       }
     }
 
+    // Armo con anticipación las cadenas de los próximos compases, de a pocas por vez: si todas se crearan justo al cambiar
+    // de sección, el navegador se trabaría en ese momento y el audio se cortaría.
+    if (this.live) this.warmAhead(ast, barIndex);
+
     // Libero las cadenas que llevan un rato sin usarse (para entonces sus colas de reverb ya terminaron).
     // Solo lo hace la reproducción en vivo: el render offline crea todo de entrada.
     for (const [sig, chain] of this.live ? this.chains : []) {
@@ -622,6 +644,22 @@ class SongCore {
       }
     }
     return { sectionIndex, barInSection, section: section.name, songBar: where.songBar, time };
+  }
+
+  warmAhead(ast, barIndex) {
+    let budget = 3; // cadenas nuevas por compás como máximo
+    for (let k = 1; k <= 4 && budget > 0; k++) {
+      const next = locate(ast, barIndex + k);
+      if (!next) return;
+      const wanted = next.section.tracks.map((t) => t);
+      for (const v of next.section.voices ?? []) if (v.bar === next.barInSection + 1) wanted.push(voiceTrack(v));
+      for (const track of wanted) {
+        if (budget <= 0) return;
+        if (this.chains.has(trackSignature(track, next.section))) continue;
+        this.chainFor(track, next.section, barIndex);
+        budget--;
+      }
+    }
   }
 
   // Construyo todas las cadenas que necesita la canción (antes de un render offline).
