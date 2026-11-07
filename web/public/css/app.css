@@ -609,7 +609,7 @@ td .row { flex-wrap: nowrap; gap: 6px; }
   .bottom-nav button.live { color: var(--accent); border-color: rgba(163, 230, 53, .5); animation: nav-glow 1.6s ease-in-out infinite; }
   @keyframes nav-glow { 50% { box-shadow: 0 0 26px rgba(163, 230, 53, .45); } }
   /* Panel izquierdo: se ve una sola herramienta a la vez, igual que en el celular */
-  .studio .side.left [data-pane] { display: none; }
+  .studio[data-left] .side.left [data-pane] { display: none; }
   .studio[data-left="songs"] .side.left [data-pane="songs"], .studio[data-left="mixer"] .side.left [data-pane="mixer"], .studio[data-left="voices"] .side.left [data-pane="voices"] { display: flex; }
   .studio[data-ai="off"] { grid-template-columns: 300px minmax(0, 1fr); }
   .studio[data-ai="off"] .side.right { display: none; }
