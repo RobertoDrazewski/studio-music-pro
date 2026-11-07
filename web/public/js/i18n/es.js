@@ -687,7 +687,11 @@ export default {
  "AI is mixing your song…": "La IA está mezclando tu canción…",
  "Auto mix": "Mezcla automática",
  "Ask the AI to mix (about 30 s)": "Pedirle la mezcla a la IA (unos 30 s)",
- "Cancelled. Your song was not changed.": "Cancelado. Tu canción no cambió."
+ "Cancelled. Your song was not changed.": "Cancelado. Tu canción no cambió.",
+ "Pick a mix. The AI only changes volume, pan and effects, never your notes.": "Elegí una mezcla. La IA solo cambia volumen, paneo y efectos, nunca tus notas.",
+ "Voices upfront": "Voces al frente",
+ "Club loud": "Fuerte de club",
+ "The AI took too long. Your song was not changed. Try again.": "La IA tardó demasiado. Tu canción no cambió. Probá de nuevo."
 },
   patterns: [
   [/^Delete (.+)$/, (n) => `Eliminar ${n}`],

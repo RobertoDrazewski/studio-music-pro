@@ -24,14 +24,14 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
         signal: controller.signal,
       });
     } catch (err) {
+      clearTimeout(timer);
       if (err.name === 'AbortError') throw new HttpError(504, 'The AI took too long to answer. Try again.');
       console.error('[openai] network error:', err.message);
       throw new HttpError(502, 'Could not reach the AI service');
-    } finally {
-      clearTimeout(timer);
     }
 
     if (!response.ok) {
+      clearTimeout(timer);
       // El mensaje del proveedor lo registro solo en el servidor; nunca lo reenvío (puede traer datos de la cuenta).
       let detail = '';
       try {
@@ -44,7 +44,15 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
       throw new HttpError(502, 'The AI service returned an error');
     }
 
-    const data = await response.json();
+    // El reloj sigue corriendo mientras leo el cuerpo: si se traba la lectura, también corto.
+    let data;
+    try {
+      data = await response.json();
+    } catch (err) {
+      throw err.name === 'AbortError' ? new HttpError(504, 'The AI took too long to answer. Try again.') : new HttpError(502, 'The AI service returned an error');
+    } finally {
+      clearTimeout(timer);
+    }
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== 'string' || !text.trim()) throw new HttpError(502, 'The AI returned an empty answer');
     return {

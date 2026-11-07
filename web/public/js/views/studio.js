@@ -17,8 +17,6 @@ import { createVoicesPanel } from '../voices.js';
 import { makeEdit, createTempoBar, createMixer, createPatternEditor } from '../controls.js';
 import { session, navigate, link, brand } from '../main.js';
 
-const MIX_PROMPT = 'Rebalance the mix only: set sensible volume, pan, reverb and filter on each instrument so it sounds clear, punchy and wide. Do not change notes, patterns, sections or tempo.';
-
 const STARTER = `// New song. Press play, then edit while it runs.
 bpm 120
 key a minor
@@ -109,7 +107,7 @@ export async function mount(root, projectId) {
   const actFill = h('i');
   const actText = h('span', {});
   // Botón para frenar: corta la espera en el navegador (el servidor puede terminar igual el pedido que ya mandé).
-  let aiAbort = null;
+  let aiAbort = null, aiWait = 0, timedOut = false;
   const cancelBtn = h('button', { class: 'btn small', type: 'button', onclick: () => aiAbort?.abort() }, 'Cancel');
   const activity = h('div', { class: 'activity', hidden: true, role: 'status' }, h('div', { class: 'act-track' }, actFill), h('div', { class: 'act-row' }, actText, cancelBtn));
   let actTimer = 0;
@@ -123,12 +121,13 @@ export async function mount(root, projectId) {
       const sec = (Date.now() - t0) / 1000;
       const pct = Math.min(92, (1 - Math.exp(-sec / 12)) * 100);
       actFill.style.width = `${pct.toFixed(0)}%`;
-      actText.textContent = `${text} ${Math.round(pct)}% · ${Math.round(sec)} s`;
+      // Pasados 45 s aviso que está tardando más de lo normal en vez de dejar el 92% clavado.
+      actText.textContent = sec > 45 ? `${text} taking longer than usual · ${Math.round(sec)} s` : `${text} ${Math.round(pct)}% · ${Math.round(sec)} s`;
     };
     draw();
     actTimer = setInterval(draw, 250);
   };
-  const mixerUi = createMixer({ mixWithAi: () => runAi('edit', MIX_PROMPT), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
+  const mixerUi = createMixer({ mixWithAi: (prompt) => runAi('edit', prompt), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
   const voicesPanel = createVoicesPanel({ player, edit, editor, session, onPending: (n) => setBadge('voices', n) });
@@ -245,6 +244,10 @@ export async function mount(root, projectId) {
     showActivity(fixedPrompt ? 'AI is mixing your song…' : 'AI is writing your song…');
     try {
       aiAbort = new AbortController();
+      // Tiempo máximo de espera: el servidor ya corta a los 60 s por intento, acá dejo margen para el reintento.
+      timedOut = false;
+      const waitTimer = setTimeout(() => { timedOut = true; aiAbort.abort(); }, 130_000);
+      aiWait = waitTimer;
       const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value, aiAbort.signal);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
       if (player.playing) {
@@ -259,10 +262,12 @@ export async function mount(root, projectId) {
       if (res.warnings?.length) toast(`Generated with ${res.warnings.length} warning(s). Check the editor.`, 'info');
       else toast('Done. Press play to listen.', 'ok');
     } catch (e) {
-      if (e.name === 'AbortError') toast('Cancelled. Your song was not changed.', 'info');
+      if (e.name === 'AbortError' && timedOut) toast('The AI took too long. Your song was not changed. Try again.', 'error', 6500);
+      else if (e.name === 'AbortError') toast('Cancelled. Your song was not changed.', 'info');
       else toast(e.message, 'error', 6500);
     } finally {
       aiBtnNew.disabled = aiBtnEdit.disabled = false;
+      clearTimeout(aiWait);
       aiAbort = null;
       showActivity('');
       refreshAiNote();

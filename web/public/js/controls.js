@@ -72,6 +72,17 @@ export function createTempoBar({ player, edit }) {
 // ---------------------------------------------------------------------------------------------
 // Mezclador: una fila por instrumento con mute/solo y un panel de faders
 // ---------------------------------------------------------------------------------------------
+// Pedido base de toda mezcla con IA y los objetivos que ofrecen los botones.
+const MIX_BASE = 'Rebalance the mix only: adjust volume, pan, reverb, delay and filter on each instrument. Do not change notes, patterns, sections or tempo. Goal:';
+const MIX_PRESETS = [
+  ['Balanced', 'a clean, balanced mix where every instrument is clear.'],
+  ['Punchy', 'punchy and tight: strong kick and bass, controlled mids, very little reverb.'],
+  ['Wide', 'wide and spacious: spread the mids and leads across the stereo field, more reverb and delay on leads.'],
+  ['Warm', 'warm and soft: tame harsh highs on mids and leads, gentle reverb.'],
+  ['Voices upfront', 'make the voices clear and upfront; lower the instruments that compete with them.'],
+  ['Club loud', 'loud and energetic club mix with a tight low end.'],
+];
+
 export function createMixer({ player, edit, openPattern, exportStem = () => {}, mixWithAi = () => {} }) {
   const root = h('div', { class: 'mixer' });
   const scopeSel = h('select', { class: 'select small-select', 'aria-label': 'Where edits apply' },
@@ -147,33 +158,6 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
     return h('div', { class: 'mix-body' }, wave, rows, actions);
   }
 
-  // Mezclas rápidas sin gastar IA: cada preset fija volumen, pan, reverb y filtro por grupo de instrumentos.
-  const MIXES = {
-    balanced: { label: 'Balanced', vol: { percussion: 0.95, bass: 1, mids: 0.8, lead: 0.9, voice: 1.1 }, pan: 0.25, reverb: { mids: 0.15, lead: 0.2 } },
-    punchy: { label: 'Punchy', vol: { percussion: 1.15, bass: 1.1, mids: 0.7, lead: 0.85, voice: 1.1 }, pan: 0.15, reverb: { mids: 0.05, lead: 0.05 } },
-    wide: { label: 'Wide', vol: { percussion: 0.95, bass: 1, mids: 0.85, lead: 0.9, voice: 1.1 }, pan: 0.6, reverb: { mids: 0.3, lead: 0.3 }, delay: { lead: 0.15 } },
-    warm: { label: 'Warm', vol: { percussion: 0.9, bass: 1.05, mids: 0.85, lead: 0.85, voice: 1.1 }, pan: 0.3, reverb: { mids: 0.2, lead: 0.2 }, lowpass: { mids: 7000, lead: 9000 } },
-  };
-  const applyMix = (id) => {
-    const m = MIXES[id];
-    const names = player.instruments;
-    let side = 1;
-    edit((code) => {
-      let c = code;
-      for (const n of names) {
-        const g = groupOf(n);
-        const put = (name, v) => { c = setTrackEffect(c, n, name, v, { section: null }); };
-        if (m.vol[g] !== undefined) put('vol', m.vol[g]);
-        if (m.reverb?.[g] !== undefined && n !== 'voice') put('reverb', m.reverb[g]);
-        if (m.delay?.[g] !== undefined) put('delay', m.delay[g]);
-        if (m.lowpass?.[g] !== undefined) put('lowpass', m.lowpass[g]);
-        // Solo abro el estéreo en mids, lead y otros; el bombo, el bajo y las voces quedan al centro.
-        if (['mids', 'lead', 'other'].includes(g)) { put('pan', Number((side * m.pan).toFixed(2))); side = -side; }
-      }
-      return c;
-    });
-  };
-
   // Medidor de cada instrumento: lee el último golpe que dejó el motor y lo hace decaer.
   const meters = new Map();
   let rafId = 0;
@@ -189,11 +173,10 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
   };
   const startMeters = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
 
-  // Arriba del mezclador: mezcla automática instantánea, los presets y, aparte, pedirle la mezcla a la IA (tarda).
+  // Botones de mezcla con pedidos ya escritos: cada uno le pide a la IA un estilo de mezcla (se ve el progreso arriba).
   const quickBar = () => h('div', { class: 'mix-quick' },
-    h('button', { class: 'btn primary', type: 'button', onclick: () => applyMix('balanced') }, icon('sparkles', { size: 16 }), ' Auto mix'),
-    h('div', { class: 'mix-presets' }, Object.entries(MIXES).map(([id, m]) => h('button', { class: 'btn small', type: 'button', onclick: () => applyMix(id) }, m.label))),
-    h('button', { class: 'btn small', type: 'button', onclick: mixWithAi }, 'Ask the AI to mix (about 30 s)'));
+    h('p', { class: 'muted', style: 'font-size:13px;margin:0' }, 'Pick a mix. The AI only changes volume, pan and effects, never your notes.'),
+    h('div', { class: 'mix-presets' }, MIX_PRESETS.map(([label, goal]) => h('button', { class: 'btn', type: 'button', onclick: () => mixWithAi(`${MIX_BASE} ${goal}`) }, label))));
 
   function build() {
     refreshers.length = 0;
