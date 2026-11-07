@@ -96,7 +96,16 @@ export async function createApp(config, { fetchImpl } = {}) {
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Not found')));
 
   // ---- Front end (plain ES modules, no build step) --------------------------
-  const staticOpts = { index: false, maxAge: config.isProd ? '1h' : 0 };
+  // Code files are always revalidated (ETag), so a deploy shows up at once even behind Cloudflare's cache;
+  // images and fonts can be cached for an hour.
+  const staticOpts = {
+    index: false,
+    etag: true,
+    setHeaders: (res, file) => {
+      const code = /\.(js|css|html|webmanifest|json)$/.test(file);
+      res.setHeader('Cache-Control', code || !config.isProd ? 'no-cache' : 'public, max-age=3600');
+    },
+  };
   // The browser reuses the same language parser as the server, and the audio engine library.
   app.use('/shared', express.static(config.sharedDir, staticOpts));
   app.get('/vendor/tone.js', (_req, res, next) => {

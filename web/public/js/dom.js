@@ -67,7 +67,7 @@ export function modal({ title, body, actions = [], wide = false, onClose }) {
     h(
       'div',
       { class: `modal${wide ? ' wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
-      h('div', { class: 'modal-head' }, h('h2', {}, title), h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: close }, '✕')),
+      h('div', { class: 'modal-head' }, h('h2', {}, title), h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: close }, '×')),
       h('div', { class: 'modal-body' }, body),
       actions.length ? h('div', { class: 'modal-actions' }, actions) : null,
     ),
