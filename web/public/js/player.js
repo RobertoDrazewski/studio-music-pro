@@ -1,7 +1,7 @@
 // Conecta el editor, el parser y el motor de audio, y dibuja el visualizador.
 import { h } from './dom.js';
-import { parse } from '/shared/lang/parser.js';
-import { totalBars } from '/shared/lang/plan.js';
+import { parse } from '../shared/lang/parser.js';
+import { totalBars } from '../shared/lang/plan.js';
 import { PulseEngine, songInstruments } from './engine.js';
 
 export class Player {

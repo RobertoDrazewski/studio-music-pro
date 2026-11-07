@@ -4,8 +4,8 @@ import { renderProject, renderSong, encodeWav, songDuration } from './engine.js'
 import { download } from './dom.js';
 import { MAX_AUDIO_SECONDS } from './config.js';
 import { makeZip } from './zip.js';
-import { groupOf } from '/shared/lang/promptbuilder.js';
-import { buildReaperProject, buildReadme } from '/shared/lang/reaper.js';
+import { groupOf } from '../shared/lang/promptbuilder.js';
+import { buildReaperProject, buildReadme } from '../shared/lang/reaper.js';
 
 const UPLOAD_BUDGET_BYTES = 90 * 1024 * 1024; // cada archivo debe quedar por debajo del límite del servidor (95 MB)
 

@@ -1,5 +1,5 @@
 // Syntax highlighting for Pulse code. Produces HTML where every piece of user text is escaped.
-import { INSTRUMENTS, WAVES, EFFECTS, DRUMS } from '/shared/lang/spec.js';
+import { INSTRUMENTS, WAVES, EFFECTS, DRUMS } from '../shared/lang/spec.js';
 
 const KEYWORDS = new Set(['bpm', 'swing', 'key', 'loop', 'master', 'mute', 'solo', 'section', 'every', 'bars', 'voice', 'mic', 'female', 'male', 'bar', 'style']);
 const EFFECT_NAMES = new Set(Object.keys(EFFECTS));

@@ -52,3 +52,15 @@ test('web: share page has escaped social preview tags', async () => {
   assert.equal(missing.status, 404);
   assert.match(await missing.text(), /<div id="app">/); // la SPA dibuja su propia página de "no encontrado"
 });
+
+test('web: the index loads code from a versioned path and that path serves the same files', async () => {
+  const html = await (await get('/')).text();
+  const m = html.match(/src="(\/_v\/[a-z0-9]+\/js\/main\.js)"/);
+  assert.ok(m, 'main.js should be loaded from /_v/<version>/');
+  assert.match(html, /href="\/css\/app\.css\?v=[a-z0-9]+"/);
+  for (const url of [m[1], m[1].replace('main.js', 'views/studio.js'), m[1].replace('js/main.js', 'shared/lang/parser.js')]) {
+    const r = await get(url);
+    assert.equal(r.status, 200, url);
+    assert.match(r.headers.get('content-type'), /javascript/, url);
+  }
+});

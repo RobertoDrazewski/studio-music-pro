@@ -5,9 +5,9 @@ import { api } from './api.js';
 import { h, clear, toast, debounce } from './dom.js';
 import { icon } from './icons.js';
 import { voiceBuffers } from './engine.js';
-import { voiceKey } from '/shared/lang/plan.js';
-import { insertLineInSection, removeLine } from '/shared/lang/edit.js';
-import { LIMITS } from '/shared/lang/spec.js';
+import { voiceKey } from '../shared/lang/plan.js';
+import { insertLineInSection, removeLine } from '../shared/lang/edit.js';
+import { LIMITS } from '../shared/lang/spec.js';
 import { takes, micSupported, listInputs, startRecording } from './mic.js';
 
 const Tone = window.Tone;

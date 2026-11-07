@@ -2,9 +2,9 @@
 // Cada control llama a `edit(fn)`, que reescribe el texto de la canción, así el código siempre muestra qué cambió.
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
-import { DRUMS, MELODIC } from '/shared/lang/spec.js';
-import { groupOf } from '/shared/lang/promptbuilder.js';
-import { setGlobal, setTrackEffect, setTrackWave, setStep, resizePattern, transposeTrack, getSteps, scaleNotes } from '/shared/lang/edit.js';
+import { DRUMS, MELODIC } from '../shared/lang/spec.js';
+import { groupOf } from '../shared/lang/promptbuilder.js';
+import { setGlobal, setTrackEffect, setTrackWave, setStep, resizePattern, transposeTrack, getSteps, scaleNotes } from '../shared/lang/edit.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const fx = (track, name) => track?.effects.find((e) => e.name === name)?.args[0];
@@ -168,6 +168,8 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
       const a = player.engine.core?.activity.get(n);
       const lvl = a && player.playing && now >= a.t ? Math.min(1, a.vel * Math.exp(-(now - a.t) * 5)) : 0;
       bar.style.transform = `scaleY(${lvl.toFixed(2)})`;
+      // Además del medidor, la fila entera recibe la intensidad del golpe para que el ícono del instrumento "se prenda" al sonar.
+      (bar.__row ||= bar.closest('.mix-row'))?.style.setProperty('--hit', lvl.toFixed(2));
     }
     rafId = requestAnimationFrame(tick);
   };

@@ -2,13 +2,13 @@ import { api } from '../api.js';
 import { h, clear, toast, debounce, modal } from '../dom.js';
 import { Editor } from '../editor.js';
 import { Player, createScope, createTransport } from '../player.js';
-import { DEMO_SONG } from '/shared/lang/demo.js';
+import { DEMO_SONG } from '../../shared/lang/demo.js';
 import { exportStem } from '../export.js';
 import { openShare as openShare0 } from './studio-share.js';
 import { openExport as openExport0 } from './studio-export.js';
-import { STYLES, STYLE_BY_ID } from '/shared/lang/styles.js';
+import { STYLES, STYLE_BY_ID } from '../../shared/lang/styles.js';
 import { openManual } from '../manual.js';
-import { insertLineInSection } from '/shared/lang/edit.js';
+import { insertLineInSection, setTrackEffect } from '../../shared/lang/edit.js';
 import { createInstallButton } from '../install.js';
 import { icon } from '../icons.js';
 import { createUserMenu } from '../usermenu.js';
@@ -127,7 +127,7 @@ export async function mount(root, projectId) {
     draw();
     actTimer = setInterval(draw, 250);
   };
-  const mixerUi = createMixer({ mixWithAi: (prompt) => runAi('edit', prompt), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
+  const mixerUi = createMixer({ mixWithAi: (prompt) => runMix(prompt), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
   const voicesPanel = createVoicesPanel({ player, edit, editor, session, onPending: (n) => setBadge('voices', n) });
@@ -233,6 +233,39 @@ export async function mount(root, projectId) {
   };
   const refreshAiNote = () => { aiNote.textContent = quotaText(); };
   refreshAiNote();
+
+  // Mezcla con IA: el servidor devuelve solo los ajustes de cada instrumento y yo los escribo en el código acá,
+  // sin reescribir la canción. Es mucho más rápido que pedir una canción nueva.
+  const runMix = async (prompt) => {
+    if (aiAbort) return;
+    aiBtnNew.disabled = aiBtnEdit.disabled = true;
+    showActivity('AI is mixing your song…');
+    try {
+      aiAbort = new AbortController();
+      timedOut = false;
+      aiWait = setTimeout(() => { timedOut = true; aiAbort.abort(); }, 70_000);
+      const res = await api.mix(prompt, editor.value, aiAbort.signal);
+      if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
+      // Aplico cada ajuste a todas las secciones; los valores null borran ese efecto.
+      let code = editor.value;
+      for (const [inst, fields] of Object.entries(res.mix)) {
+        for (const [fx, v] of Object.entries(fields)) code = setTrackEffect(code, inst, fx, v === 1 && fx === 'vol' ? null : v);
+      }
+      editor.setValue(code);
+      editor.onChange?.(editor.value);
+      toast(`Mix applied to ${Object.keys(res.mix).length} instruments.`, 'ok');
+    } catch (e) {
+      if (e.name === 'AbortError' && timedOut) toast('The AI took too long. Your song was not changed. Try again.', 'error', 6500);
+      else if (e.name === 'AbortError') toast('Cancelled. Your song was not changed.', 'info');
+      else toast(e.message, 'error', 6500);
+    } finally {
+      aiBtnNew.disabled = aiBtnEdit.disabled = false;
+      clearTimeout(aiWait);
+      aiAbort = null;
+      showActivity('');
+      refreshAiNote();
+    }
+  };
 
   const runAi = async (mode, fixedPrompt) => {
     const prompt = (fixedPrompt ?? promptPanel.compose(mode)).trim();

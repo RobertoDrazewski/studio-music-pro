@@ -2,12 +2,12 @@
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { LIMITS } from '/shared/lang/spec.js';
+import { LIMITS } from '../shared/lang/spec.js';
 import {
   MOODS, ENERGIES, STRUCTURES, BASS_TYPES, FEELS, FX_CHOICES, KEY_ROOTS, KEY_SCALES,
   INSTRUMENT_GROUPS, QUICK_EDITS, EDIT_GROUPS, STRENGTHS, PRESETS,
   emptySelection, composePrompt, selectionIsEmpty,
-} from '/shared/lang/promptbuilder.js';
+} from '../shared/lang/promptbuilder.js';
 
 const EDIT_ICON = {
   faster: 'arrowRight', slower: 'arrowLeft', 'more-groove': 'waveform', halftime: 'clock', 'heavier-bass': 'speaker', 'lighter-bass': 'wave2',

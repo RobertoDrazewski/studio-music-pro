@@ -5,7 +5,7 @@ import { HttpError } from '../http.js';
 export function createOpenAI({ config, fetchImpl = fetch }) {
   const { apiKey, baseUrl, model, maxOutputTokens, reasoningEffort, timeoutMs } = config.openai;
 
-  async function chat(messages) {
+  async function chat(messages, { maxTokens } = {}) {
     if (!apiKey) throw new HttpError(503, 'AI generation is not configured on this server');
 
     const controller = new AbortController();
@@ -18,7 +18,7 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
         body: JSON.stringify({
           model,
           messages,
-          max_completion_tokens: maxOutputTokens,
+          max_completion_tokens: maxTokens ?? maxOutputTokens,
           ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         }),
         signal: controller.signal,

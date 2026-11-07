@@ -2,7 +2,7 @@ import { createInstallButton } from '../install.js';
 import { h } from '../dom.js';
 import { Editor } from '../editor.js';
 import { Player, createScope } from '../player.js';
-import { DEMO_SONG } from '/shared/lang/demo.js';
+import { DEMO_SONG } from '../../shared/lang/demo.js';
 import { session, link, brand } from '../main.js';
 import { icon } from '../icons.js';
 import { langSwitch, siteFooter } from '../components.js';

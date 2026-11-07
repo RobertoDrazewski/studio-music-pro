@@ -409,3 +409,20 @@ test('demo plan: one song, no master export; paid plans have no such limits', as
   assert.equal((await paid.client.post('/api/projects', { title: 'A', code: 'bpm 120' })).status, 201);
   assert.equal((await paid.client.post('/api/projects', { title: 'B', code: 'bpm 120' })).status, 201);
 });
+
+test('AI mix: returns only clamped per-instrument settings for instruments that exist', async () => {
+  // App aparte: el presupuesto de la compartida ya lo gastaron otros tests.
+  const fake2 = await startFakeOpenAI();
+  const app2 = await startApp({ openaiUrl: fake2.url });
+  after(async () => { await app2.stop(); await fake2.close?.(); });
+  const admin = await loginAdmin(app2.base);
+  const u = await createUser(app2.base, admin, { email: 'aimix@example.com', aiMonthlyQuota: 5 });
+  const fake = fake2;
+  fake.state.replies.push('```json\n{"kick":{"vol":9,"pan":0.2,"reverb":null,"bogus":1},"ghost":{"vol":1}}\n```');
+  const r = await u.client.post('/api/ai/mix', { prompt: 'punchy and tight', code: VALID });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.data.mix, { kick: { vol: 1.5, pan: 0.2, reverb: null } });
+  assert.equal(fake.state.requests.at(-1).body.max_completion_tokens, 1500);
+  fake.state.replies.push('not json at all');
+  assert.equal((await u.client.post('/api/ai/mix', { prompt: 'punchy and tight', code: VALID })).status, 502);
+});

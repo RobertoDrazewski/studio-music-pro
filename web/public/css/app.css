@@ -680,3 +680,13 @@ td .row { flex-wrap: nowrap; gap: 6px; }
   .mix-card:not(.open) .nm-btn svg { display: none; }
   .mix-card:not(.open) .nm-btn { text-overflow: ellipsis; padding-left: 4px; }
 }
+
+/* ---- Escritorio: el ícono de cada instrumento brilla con cada golpe que suena (la intensidad --hit la calcula el mezclador) ---- */
+@media (min-width: 821px) {
+  .mix-row { --hit: 0; }
+  .mix-row > img { filter: drop-shadow(0 0 calc(var(--hit) * 10px) rgba(163, 230, 53, calc(var(--hit) * .9))) brightness(calc(1 + var(--hit) * .45)); transition: filter 60ms linear; }
+  .mix-card:not(.open) .mix-row { box-shadow: inset 0 0 calc(var(--hit) * 22px) rgba(163, 230, 53, calc(var(--hit) * .28)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mix-row > img { filter: none; }
+}

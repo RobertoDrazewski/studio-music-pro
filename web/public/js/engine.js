@@ -18,8 +18,8 @@ import {
   trackSignature,
   songInstruments,
   voiceKey,
-} from '/shared/lang/plan.js';
-import { DRUMS } from '/shared/lang/spec.js';
+} from '../shared/lang/plan.js';
+import { DRUMS } from '../shared/lang/spec.js';
 
 const Tone = window.Tone;
 

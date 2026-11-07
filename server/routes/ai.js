@@ -6,8 +6,9 @@ import rateLimit from 'express-rate-limit';
 import { z, validate, HttpError } from '../http.js';
 import { extractCode } from '../services/openai.js';
 import { parse, formatErrors } from '../../shared/lang/parser.js';
+import { songInstruments } from '../../shared/lang/plan.js';
 import { GENERATOR_SYSTEM_PROMPT, LANGUAGE_GUIDE, buildGeneratorMessages, buildRepairPrompt } from '../../shared/lang/guide.js';
-import { VOICES, LIMITS } from '../../shared/lang/spec.js';
+import { VOICES, LIMITS, EFFECTS } from '../../shared/lang/spec.js';
 import { STYLE_BY_ID, enforceStyleTempo, setBpmInCode } from '../../shared/lang/styles.js';
 
 export function aiRoutes({ db, config, auth, quota, openai }) {
@@ -181,6 +182,87 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
     } finally {
       voiceInFlight.delete(user.id);
       if (ok) quota.recordVoiceUsage({ userId: user.id, model: ttsModel, chars: text.length, ok: true });
+    }
+  });
+
+  // ---- Mezcla rápida ----------------------------------------------------------------------
+  // Para mezclar no hace falta que la IA reescriba la canción: le pido solo los ajustes de cada instrumento (unas pocas líneas
+  // de JSON) y el navegador los aplica. Así tarda segundos en vez de más de un minuto y cuesta una fracción.
+  const MIX_KEYS = ['vol', 'pan', 'reverb', 'delay', 'lowpass', 'highpass'];
+  const MIX_SYSTEM = [
+    'You are a mixing engineer for a browser music tool. Reply with ONLY one JSON object, no prose and no code fences.',
+    'Keys are instrument names from the list you are given; each value is an object with any of these numeric fields:',
+    'vol (0 to 1.5, 1 is unity), pan (-1 left to 1 right), reverb (0 to 1), delay (0 to 1), lowpass (Hz, 20 to 20000), highpass (Hz, 20 to 20000).',
+    'Use null to remove an effect. Leave a field out to keep it as it is. Never invent instruments.',
+    'Keep kick and bass centered. Do not make everything loud: leave headroom.',
+  ].join(' ');
+
+  const mixSchema = z.object({
+    prompt: z.string().trim().min(3).max(config.limits.maxPromptChars),
+    code: z.string().min(1).max(config.limits.maxCodeBytes),
+  });
+
+  // Dejo pasar solo los campos conocidos y llevo cada valor a su rango permitido.
+  function cleanMix(raw, names) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const name of names) {
+      const src = raw[name];
+      if (!src || typeof src !== 'object') continue;
+      const fields = {};
+      for (const key of MIX_KEYS) {
+        if (!(key in src)) continue;
+        if (src[key] === null) { if (key !== 'vol' && key !== 'pan') fields[key] = null; continue; }
+        const n = Number(src[key]);
+        if (!Number.isFinite(n)) continue;
+        const { min, max } = EFFECTS[key].args[0];
+        fields[key] = Math.round(Math.min(max, Math.max(min, n)) * 100) / 100;
+      }
+      if (Object.keys(fields).length) out[name] = fields;
+    }
+    return out;
+  }
+
+  router.post('/mix', limiter, async (req, res) => {
+    const { prompt, code } = validate(mixSchema, req.body);
+    const user = req.user;
+    const status = quota.aiStatus(user);
+    if (status.remaining !== null && status.remaining <= 0) {
+      throw new HttpError(429, 'You used all your AI generations for this month', { code: 'AI_QUOTA_EXCEEDED' });
+    }
+    if (quota.budgetStatus().exceeded) throw new HttpError(503, 'AI generation is paused for this month', { code: 'AI_BUDGET_EXCEEDED' });
+    if (inFlight.has(user.id)) throw new HttpError(409, 'A generation is already running');
+
+    const check = parse(code);
+    if (!check.ok) throw new HttpError(400, 'Fix the errors in the song first');
+    const names = songInstruments(check.ast);
+
+    inFlight.add(user.id);
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let ok = false;
+    try {
+      const attempt = await openai.chat(
+        [
+          { role: 'system', content: MIX_SYSTEM },
+          { role: 'user', content: `Instruments: ${names.join(', ')}\nBPM: ${check.ast.bpm}\nRequest: ${prompt}` },
+        ],
+        { maxTokens: 1500 },
+      );
+      promptTokens = attempt.promptTokens;
+      completionTokens = attempt.completionTokens;
+      const json = attempt.text.match(/\{[\s\S]*\}/)?.[0];
+      let raw = null;
+      try { raw = json ? JSON.parse(json) : null; } catch { raw = null; }
+      const mix = cleanMix(raw, names);
+      if (!Object.keys(mix).length) throw new HttpError(502, 'The AI did not return a usable mix this time. Try again.', { code: 'AI_INVALID_OUTPUT' });
+      ok = true;
+      res.json({ mix, quota: status.remaining === null ? { remaining: null } : { remaining: Math.max(0, status.remaining - 1) } });
+    } finally {
+      inFlight.delete(user.id);
+      if (promptTokens || completionTokens || ok) {
+        quota.recordAiUsage({ userId: user.id, model: openai.model, promptTokens, completionTokens, ok });
+      }
     }
   });
 

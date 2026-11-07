@@ -2,9 +2,9 @@
 // El contenido sale de shared/lang/spec.js y recipes.js, así nunca se aleja de lo que acepta el parser.
 
 import { h, modal, copyText, toast } from './dom.js';
-import { DRUMS, MELODIC, EFFECTS, DEFAULT_WAVE, WAVES, GLOBALS, LIMITS } from '/shared/lang/spec.js';
-import { RECIPES } from '/shared/lang/recipes.js';
-import { INSTRUMENT_GROUPS, KEY_ROOTS } from '/shared/lang/promptbuilder.js';
+import { DRUMS, MELODIC, EFFECTS, DEFAULT_WAVE, WAVES, GLOBALS, LIMITS } from '../shared/lang/spec.js';
+import { RECIPES } from '../shared/lang/recipes.js';
+import { INSTRUMENT_GROUPS, KEY_ROOTS } from '../shared/lang/promptbuilder.js';
 
 const ROLE = {
   kick: ['The heartbeat. Hits where the beat is.', 'kick "x . . . x . . . x . . . x . . ."'],

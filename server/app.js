@@ -106,6 +106,13 @@ export async function createApp(config, { fetchImpl } = {}) {
       res.setHeader('Cache-Control', code || !config.isProd ? 'no-store, max-age=0' : 'public, max-age=3600');
     },
   };
+  // Cada arranque del servidor (o sea, cada deploy) tiene su propia versión. El index carga el código desde /_v/<versión>/,
+  // una URL que ningún caché vio antes, así el navegador y Cloudflare nunca mezclan archivos viejos con nuevos.
+  const buildId = Date.now().toString(36);
+  app.use((req, _res, next) => {
+    if (req.url.startsWith('/_v/')) req.url = req.url.replace(/^\/_v\/[^/]+/, '');
+    next();
+  });
   // El navegador reutiliza el mismo parser del lenguaje que el servidor, y la librería del motor de audio.
   app.use('/shared', express.static(config.sharedDir, staticOpts));
   app.get('/vendor/tone.js', (_req, res, next) => {
@@ -117,7 +124,9 @@ export async function createApp(config, { fetchImpl } = {}) {
   if (fs.existsSync(indexFile)) {
     const cachedIndex = fs.readFileSync(indexFile, 'utf8');
     // En desarrollo releo el archivo en cada pedido, así los cambios se ven al refrescar.
-    const getIndex = () => (config.isProd ? cachedIndex : fs.readFileSync(indexFile, 'utf8'));
+    // Al index le inyecto la versión del deploy en el código y en los estilos.
+    const stamp = (html) => html.replace('src="/js/main.js"', `src="/_v/${buildId}/js/main.js"`).replace('href="/css/app.css"', `href="/css/app.css?v=${buildId}"`);
+    const getIndex = () => stamp(config.isProd ? cachedIndex : fs.readFileSync(indexFile, 'utf8'));
     const esc = (s) =>
       String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const withMeta = (req, title, description, type = 'music.song') => {
