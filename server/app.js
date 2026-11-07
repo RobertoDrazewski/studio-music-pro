@@ -111,17 +111,26 @@ export async function createApp(config, { fetchImpl } = {}) {
     const getIndex = () => (config.isProd ? cachedIndex : fs.readFileSync(indexFile, 'utf8'));
     const esc = (s) =>
       String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-    const withMeta = (req, title, description) => {
-      const base = config.publicUrl || `${req.protocol}://${req.get('host')}`;
+    const withMeta = (req, title, description, type = 'music.song') => {
+      // Behind the tunnel the app sees plain http, so social previews are always built with https in production.
+      const base = (config.publicUrl || `${config.isProd ? 'https' : req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
       const meta = [
         `<title>${esc(title)}</title>`,
         `<meta property="og:title" content="${esc(title)}">`,
         `<meta property="og:description" content="${esc(description)}">`,
-        `<meta property="og:type" content="music.song">`,
+        `<meta name="description" content="${esc(description)}">`,
+        `<meta property="og:site_name" content="${esc(config.appName)}">`,
+        `<meta property="og:type" content="${type}">`,
+        `<meta property="og:url" content="${esc(base)}${esc(req.originalUrl.split('?')[0])}">`,
         `<meta property="og:image" content="${esc(base)}/img/og-share.jpg">`,
+        `<meta property="og:image:width" content="1200">`,
+        `<meta property="og:image:height" content="630">`,
+        `<meta name="twitter:title" content="${esc(title)}">`,
+        `<meta name="twitter:description" content="${esc(description)}">`,
+        `<meta name="twitter:image" content="${esc(base)}/img/og-share.jpg">`,
         `<meta name="twitter:card" content="summary_large_image">`,
       ].join('\n    ');
-      return getIndex().replace(/<title>[\s\S]*?<\/title>/, meta);
+      return getIndex().replace(/<meta name="description"[^>]*>\s*/, '').replace(/<title>[\s\S]*?<\/title>/, meta);
     };
 
     app.get('/s/:slug', (req, res) => {
@@ -143,9 +152,9 @@ export async function createApp(config, { fetchImpl } = {}) {
       res.type('application/javascript').sendFile(path.join(config.webDir, 'sw.js'));
     });
     app.use(express.static(config.webDir, staticOpts));
-    app.get(/^(?!\/(api|shared|vendor)\/).*/, (_req, res) => {
+    app.get(/^(?!\/(api|shared|vendor)\/).*/, (req, res) => {
       res.set('Cache-Control', 'no-cache');
-      res.type('html').send(getIndex().replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(config.appName)}</title>`));
+      res.type('html').send(withMeta(req, `${config.appName} · Make music by typing code`, 'Write a few lines, hear them instantly and keep editing while the track plays. Let AI draft the first idea, then export the full song, every track or a Reaper project.', 'website'));
     });
   }
 
