@@ -96,14 +96,14 @@ export async function createApp(config, { fetchImpl } = {}) {
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Not found')));
 
   // ---- Front end (módulos ES simples, sin paso de build) --------------------------
-  // Los archivos de código se revalidan siempre (ETag), así un deploy se ve al instante incluso detrás del caché de Cloudflare;
+  // Los archivos de código no se guardan en ningún caché (ni el del navegador ni el de Cloudflare), así un deploy se ve al instante;
   // las imágenes y fuentes se pueden cachear una hora.
   const staticOpts = {
     index: false,
     etag: true,
     setHeaders: (res, file) => {
       const code = /\.(js|css|html|webmanifest|json)$/.test(file);
-      res.setHeader('Cache-Control', code || !config.isProd ? 'no-cache' : 'public, max-age=3600');
+      res.setHeader('Cache-Control', code || !config.isProd ? 'no-store, max-age=0' : 'public, max-age=3600');
     },
   };
   // El navegador reutiliza el mismo parser del lenguaje que el servidor, y la librería del motor de audio.
