@@ -15,20 +15,20 @@ const TABS = [
 ];
 
 const FEATURES = [
-  ['code', 'Live coding', 'Edit while it plays. Valid changes land on the next bar and mistakes are highlighted without stopping the music.'],
-  ['sparkles', 'AI that writes code, not audio', 'Describe a mood and get an editable song back. Read every line, change it and keep what you like.'],
-  ['wand', 'Build and edit with clicks', 'Pick style, mood, instruments and quick edits with buttons, then apply them to your song.'],
-  ['mic', 'Voices and your own takes', 'Add spoken lines with AI voices or record your own vocals right in the browser.'],
-  ['layers', 'Tracks and Reaper project', 'Download each instrument or group as WAV, or a ZIP with the full mix, every track and a Reaper project.'],
-  ['gauge', 'Mastered export', 'One click renders your song, balances loudness and exports WAV, MP3 or a mastered ZIP.'],
+  ['code', 'Edit while it plays', 'Change a line and the next bar already sounds different. A wrong note gets highlighted; the music keeps going.'],
+  ['sparkles', 'AI drafts the first idea', 'Describe the track you want. You get plain, editable code back, not a locked audio file.'],
+  ['wand', 'Build it with clicks', 'Style, mood, instruments and quick edits are buttons. Every click rewrites the code for you.'],
+  ['mic', 'Your voice or an AI voice', 'Add spoken lines with AI voices, or record yourself over the song right in the browser.'],
+  ['layers', 'Every track, plus a Reaper project', 'Download each instrument or group as WAV, or one ZIP with the mix, all the tracks and a ready .rpp project.'],
+  ['gauge', 'Mastered in one click', 'Loudness and tone are balanced for you. Export WAV, MP3 or a mastered ZIP.'],
 ];
 
 const SOUND_GROUPS = [
-  ['drum', 'Percussion', ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc']],
-  ['speaker', 'Bass', ['bass', 'sub']],
-  ['keys', 'Mids', ['pad', 'strings', 'organ', 'keys', 'stab', 'pluck', 'arp']],
-  ['zap', 'Lead', ['lead', 'synth', 'bell']],
-  ['mic', 'Voices', ['voice']],
+  ['drum', 'Percussion', 'Drums and rhythm', ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc']],
+  ['speaker', 'Bass', 'The low end', ['bass', 'sub']],
+  ['keys', 'Mids', 'Chords and texture', ['pad', 'strings', 'organ', 'keys', 'stab', 'pluck', 'arp']],
+  ['zap', 'Lead', 'Melodies', ['lead', 'synth', 'bell']],
+  ['mic', 'Voices', 'Spoken and recorded', ['voice']],
 ];
 
 const PLANS = [
@@ -46,8 +46,8 @@ export function mount(root) {
 
   // ---------- header ----------
   const tabBtns = [];
-  const tabs = h('nav', { class: 'lp-tabs', role: 'tablist', 'aria-label': 'Sections' }, TABS.map(([id, ic, label]) => {
-    const b = h('button', { type: 'button', role: 'tab', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 16 }), h('span', {}, label));
+  const tabs = h('nav', { class: 'lp-tabs', 'aria-label': 'Sections' }, TABS.map(([id, ic, label]) => {
+    const b = h('button', { type: 'button', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 16 }), h('span', {}, label));
     tabBtns.push(b);
     return b;
   }));
@@ -125,30 +125,29 @@ export function mount(root) {
     h('div', { class: 'console-foot' }, demoBtn, skipBtn, status));
 
   const chip = (ic, text) => h('li', {}, icon(ic, { size: 15 }), h('span', {}, text));
-  const demoPanel = h('section', { class: 'lp-panel lp-home', 'data-panel': 'demo', role: 'tabpanel' },
+  const demoPanel = h('section', { class: 'lp-sec lp-hero', id: 'demo' }, h('div', { class: 'lp-inner lp-home' },
     h('div', { class: 'hero-copy' },
-      h('h1', {}, 'Make music by typing code.'),
-      h('p', { class: 'lead' }, 'Write a few lines and hear them instantly. Edit while the track plays, let AI draft the first idea, then export the full song, every track on its own, or a ready-to-open Reaper project.'),
-      h('div', { class: 'cta' }, cta('btn big'), h('button', { class: 'btn big ghost', type: 'button', onclick: () => show('plans') }, 'See plans')),
+      h('h1', {}, 'Make music by ', h('em', {}, 'typing code.')),
+      h('p', { class: 'lead' }, 'Write a few lines, hear them instantly, and keep editing while the track plays. Let AI draft the first idea, then export the full song, every track on its own, or a Reaper project.'),
+      h('div', { class: 'cta' }, h('button', { class: 'btn primary big', type: 'button', onclick: () => { consoleEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (!player.playing && !abort) demoBtn.click(); } }, label('play', 'Watch it play itself')), cta('btn big')),
       h('ul', { class: 'chips' }, chip('code', 'Live coding'), chip('sparkles', 'AI drafts'), chip('layers', 'Tracks + Reaper'))),
-    consoleEl);
+    consoleEl));
 
-  // ---------- features panel ----------
-  const featuresPanel = h('section', { class: 'lp-panel', 'data-panel': 'features', role: 'tabpanel' },
-    h('header', { class: 'lp-head' }, h('h2', {}, 'Everything you need to write, play and deliver a track'), h('p', {}, 'A song is a short file you can read, copy and share. No timeline to drag around.')),
-    h('div', { class: 'fgrid' }, FEATURES.map(([ic, title, text]) => h('article', { class: 'fcard' },
-      h('span', { class: 'ficon' }, icon(ic, { size: 22 })), h('h3', {}, title), h('p', {}, text)))));
+  // ---------- features ----------
+  const featuresPanel = h('section', { class: 'lp-sec', id: 'features' }, h('div', { class: 'lp-inner' },
+    h('header', { class: 'lp-head' }, h('h2', {}, 'From first idea to finished track'), h('p', {}, 'A song is a short text file you can read, copy and share. There is no timeline to drag around.')),
+    h('div', { class: 'flist' }, FEATURES.map(([ic, title, text]) => h('article', { class: 'fitem' },
+      h('span', { class: 'ficon' }, icon(ic, { size: 22 })), h('div', {}, h('h3', {}, title), h('p', {}, text)))))));
 
-  // ---------- sounds panel ----------
-  const tile = (n) => (n === 'voice'
-    ? [h('div', { class: 'tile' }, h('img', { src: '/img/instruments/voice.png', alt: '', loading: 'lazy' }), h('span', {}, 'AI voice')),
-      h('div', { class: 'tile' }, h('span', { class: 'tile-ic' }, icon('mic', { size: 26 })), h('span', {}, 'Your mic'))]
-    : h('div', { class: 'tile' }, h('img', { src: `/img/instruments/${n}.png`, alt: '', loading: 'lazy' }), h('span', { 'data-notranslate': '' }, n)));
-  const soundsPanel = h('section', { class: 'lp-panel', 'data-panel': 'sounds', role: 'tabpanel' },
-    h('header', { class: 'lp-head' }, h('h2', {}, 'Eighteen instruments plus voices, all in the browser'), h('p', {}, 'Drums and synths are generated live with the Web Audio API. Nothing to install and no samples to download.')),
-    h('div', { class: 'sgrid' }, SOUND_GROUPS.map(([ic, name, items]) => h('article', { class: 'sgroup' },
-      h('header', {}, icon(ic, { size: 18 }), h('h3', {}, name), h('span', { class: 'count' }, String(name === 'Voices' ? 2 : items.length))),
-      h('div', { class: 'tiles' }, items.map(tile))))));
+  // ---------- sounds ----------
+  const pill = (n, label) => h('span', { class: 'pill' }, n === 'mic'
+    ? h('span', { class: 'pill-ic' }, icon('mic', { size: 20 }))
+    : h('img', { src: `/img/instruments/${n}.png`, alt: '', loading: 'lazy', width: 36, height: 36 }), h('span', label ? {} : { 'data-notranslate': '' }, label ?? n));
+  const soundsPanel = h('section', { class: 'lp-sec', id: 'sounds' }, h('div', { class: 'lp-inner' },
+    h('header', { class: 'lp-head' }, h('h2', {}, 'Built-in sounds, made in your browser'), h('p', {}, 'Drums and synths are generated live, so there is nothing to install and no samples to download.')),
+    h('div', { class: 'slist' }, SOUND_GROUPS.map(([ic, name, blurb, items]) => h('article', { class: 'srow' },
+      h('header', {}, h('span', { class: 'ficon small' }, icon(ic, { size: 18 })), h('div', {}, h('h3', {}, name), h('p', {}, blurb))),
+      h('div', { class: 'pills' }, items.flatMap((n) => (n === 'voice' ? [pill('voice', 'AI voice'), pill('mic', 'Your mic')] : [pill(n)]))))))));
 
   // ---------- plans panel ----------
   let yearly = false;
@@ -167,29 +166,38 @@ export function mount(root) {
       p.id === 'free' ? cta('btn primary') : h('button', { class: 'btn', type: 'button', disabled: true }, 'Available at launch'))));
   };
   renderPlans();
-  const plansPanel = h('section', { class: 'lp-panel', 'data-panel': 'plans', role: 'tabpanel' },
+  const plansPanel = h('section', { class: 'lp-sec', id: 'plans' }, h('div', { class: 'lp-inner' },
     h('header', { class: 'lp-head' }, h('h2', {}, 'Plans for every stage'), h('p', {}, 'Pulse Studio is in beta, so access is free for now. Prices are in US dollars; paid plans start at launch.')),
-    billing, grid);
+    billing, grid));
 
   const panels = [demoPanel, featuresPanel, soundsPanel, plansPanel];
-  const stage = h('main', { class: 'lp-stage' }, panels, siteFooter());
+  const stage = h('main', { class: 'lp-stage' }, panels);
 
   // ---------- bottom navigation (phones) ----------
   const bottom = h('nav', { class: 'lp-bottom', 'aria-label': 'Sections' }, TABS.map(([id, ic, text]) =>
     h('button', { type: 'button', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 20 }), h('span', {}, text))));
 
-  function show(id, { push = true } = {}) {
-    if (!TABS.some(([t]) => t === id)) id = 'demo';
-    for (const p of panels) p.hidden = p.dataset.panel !== id;
+  const mark = (id) => {
     for (const b of [...tabBtns, ...bottom.children]) b.setAttribute('aria-selected', String(b.dataset.tab === id));
     for (const b of bottom.children) b.setAttribute('aria-current', String(b.dataset.tab === id));
-    stage.scrollTop = 0;
-    if (push && location.hash !== `#${id}`) history.replaceState({}, '', id === 'demo' ? location.pathname : `#${id}`);
+  };
+  function show(id) {
+    if (!TABS.some(([t]) => t === id)) id = 'demo';
+    const el = panels.find((p) => p.id === id);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (id === 'demo') window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    else el?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    history.replaceState({}, '', id === 'demo' ? location.pathname : `#${id}`);
+    mark(id);
   }
-  const onHash = () => show(location.hash.slice(1) || 'demo', { push: false });
-  window.addEventListener('hashchange', onHash);
+  const spy = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) mark(e.target.id);
+  }, { rootMargin: '-35% 0px -55% 0px' }) : null;
+  panels.forEach((p) => spy?.observe(p));
 
-  root.append(h('div', { class: 'lp' }, top, beta, stage, bottom));
-  onHash();
-  return () => { window.removeEventListener('hashchange', onHash); abort?.abort(); player.dispose(); scope.stop(); };
+  root.append(h('div', { class: 'lp' }, top, beta, stage, siteFooter(), bottom));
+  mark('demo');
+  const first = location.hash.slice(1);
+  if (first && first !== 'demo') requestAnimationFrame(() => show(first));
+  return () => { spy?.disconnect(); abort?.abort(); player.dispose(); scope.stop(); };
 }
