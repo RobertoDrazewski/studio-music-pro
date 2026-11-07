@@ -48,6 +48,8 @@ function lookup(text) {
   return lead + es + trail;
 }
 
+const ATTR_SKIP = SKIP.replace('textarea, ', '').replace('.editor, ', '');
+const skippedAttr = (el) => !el || !!el.closest?.(ATTR_SKIP);
 const skipped = (node) => {
   const el = node.nodeType === 1 ? node : node.parentElement;
   return !el || !!el.closest?.(SKIP);
@@ -63,7 +65,7 @@ function translateText(node) {
 }
 
 function translateAttrs(el) {
-  if (skipped(el)) return;
+  if (skippedAttr(el)) return;
   for (const a of ATTRS) {
     if (!el.hasAttribute?.(a)) continue;
     const bag = attrOriginals.get(el) ?? {};
