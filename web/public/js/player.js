@@ -132,8 +132,6 @@ export function createScope(player, { height = 84 } = {}) {
     const wave = player.playing ? player.engine.waveform?.getValue?.() : null;
     ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
     ctx.strokeStyle = css('--accent') || '#a3e635';
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     if (wave) {
       for (let i = 0; i < wave.length; i++) {
@@ -145,6 +143,12 @@ export function createScope(player, { height = 84 } = {}) {
       ctx.moveTo(0, hh / 2);
       ctx.lineTo(w, hh / 2);
     }
+    // El resplandor lo hago con un trazo ancho y transparente debajo (el shadowBlur en cada cuadro es muy caro).
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.lineWidth *= 3.5;
+    ctx.stroke();
+    ctx.restore();
     ctx.stroke();
     raf = requestAnimationFrame(draw);
   }

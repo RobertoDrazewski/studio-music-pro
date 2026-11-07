@@ -161,8 +161,12 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
   // Medidor de cada instrumento: lee el último golpe que dejó el motor y lo hace decaer.
   const meters = new Map();
   let rafId = 0;
-  const tick = () => {
+  let lastDraw = 0;
+  const tick = (stamp) => {
     if (!root.isConnected) { rafId = 0; return; }
+    // 30 cuadros por segundo alcanzan para un medidor y alivian a las compus lentas.
+    if (stamp - lastDraw < 33) { rafId = requestAnimationFrame(tick); return; }
+    lastDraw = stamp;
     const now = window.Tone?.now?.() ?? 0;
     for (const [n, bar] of meters) {
       const a = player.engine.core?.activity.get(n);

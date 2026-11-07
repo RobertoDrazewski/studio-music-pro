@@ -23,6 +23,14 @@ import { DRUMS } from '../shared/lang/spec.js';
 
 const Tone = window.Tone;
 
+// Prefiero más margen a menos latencia: con 'playback' el navegador usa buffers de audio más grandes y con lookAhead
+// Tone programa los golpes más adelante. Así, si la pantalla se traba un instante (compus lentas), el audio no se corta.
+try {
+  Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.25 }));
+} catch {
+  // si el navegador no lo permite, sigue con el contexto por defecto
+}
+
 const WAVE_TO_TONE = { sine: 'sine', saw: 'sawtooth', square: 'square', tri: 'triangle' };
 // Margen de volumen: varios sintes fuertes juntos pueden pasarse de la escala, así que el master arranca más bajo.
 const MASTER_BASE = 0.7;
@@ -315,6 +323,17 @@ function reverbImpulse(ctx) {
   return impulse;
 }
 
+// Reverb compartida: un solo convolver para toda la canción. Cada pista le manda una parte de su señal (envío) en vez de
+// tener el suyo; la convolución es lo más pesado del motor y con ocho pistas con reverb saturaba el procesador.
+function makeReverbBus() {
+  const input = new Tone.Gain(1);
+  const output = new Tone.Gain(1);
+  const convolver = new Tone.Convolver(reverbImpulse(Tone.getContext()));
+  convolver.normalize = true;
+  input.chain(convolver, output);
+  return { input, output, dispose: () => [input, output, convolver].forEach((n) => n.dispose()) };
+}
+
 function makeReverb(wet) {
   const impulse = reverbImpulse(Tone.getContext());
   const input = new Tone.Gain(1);
@@ -351,7 +370,7 @@ function isNeutral(name, v) {
   return false;
 }
 
-function makeEffect(name, value) {
+function makeEffect(name, value, reverbBus = null) {
   const v = value ?? NEUTRAL[name];
   switch (name) {
     case 'lowpass':
@@ -365,6 +384,19 @@ function makeEffect(name, value) {
       return { node, apply: (x, t) => node.wet.setValueAtTime(x, t), neutral: 0 };
     }
     case 'reverb': {
+      if (reverbBus) {
+        // Envío a la reverb compartida: acá queda solo la parte seca; el envío sale al final de la cadena de la pista.
+        const dry = new Tone.Gain(1 - v * 0.45);
+        const send = new Tone.Gain(v * 0.9);
+        send.connect(reverbBus.input);
+        return {
+          node: dry,
+          send,
+          apply: (x, t) => { dry.gain.setValueAtTime(1 - x * 0.45, t); send.gain.setValueAtTime(x * 0.9, t); },
+          neutral: 0,
+          dispose: () => { dry.dispose(); send.dispose(); },
+        };
+      }
       const rv = makeReverb(v);
       return { node: rv.input, out: rv.output, apply: (x, t) => rv.set(x, t), neutral: 0, dispose: () => rv.dispose() };
     }
@@ -392,7 +424,7 @@ function makeEffect(name, value) {
 // ---------------------------------------------------------------------------
 
 class Chain {
-  constructor(track, section, bus) {
+  constructor(track, section, bus, reverbBus) {
     this.instrument = track.instrument;
     this.voice = makeVoice(track.instrument, track.wave);
     this.nodes = [];
@@ -413,7 +445,7 @@ class Chain {
       if (!base.has(name) && !latent.has(name)) continue;
       // Un efecto en su valor neutro (reverb 0, lowpass 20000...) no cambia el sonido: no gasto un nodo en armarlo.
       if (!latent.has(name) && base.has(name) && isNeutral(name, base.get(name))) continue;
-      const fx = makeEffect(name, base.get(name));
+      const fx = makeEffect(name, base.get(name), reverbBus);
       if (!fx) continue;
       fx.base = base.has(name) ? base.get(name) : fx.neutral;
       prev.connect(fx.node);
@@ -426,6 +458,9 @@ class Chain {
     this.volume = new Tone.Gain(1);
     this.duck = new Tone.Gain(1);
     prev.chain(this.pan, this.volume, this.duck, bus);
+    // El envío a la reverb sale al final de la cadena, así respeta el volumen, el paneo y el sidechain de la pista.
+    const rvFx = this.effects.get('reverb');
+    if (rvFx?.send) this.duck.connect(rvFx.send);
     this.baseVol = track.effects.find((e) => e.name === 'vol')?.args[0] ?? 1;
     this.basePan = track.effects.find((e) => e.name === 'pan')?.args[0] ?? 0;
     this.sidechain = track.effects.find((e) => e.name === 'sidechain')?.args[0] ?? null;
@@ -483,6 +518,8 @@ class SongCore {
 
     // Bus master: efectos del usuario -> limitador -> salida
     this.bus = new Tone.Gain(1);
+    this.reverbBus = makeReverbBus();
+    this.reverbBus.output.connect(this.bus);
     this.masterFx = [];
     this.userVolume = 1;
     this.masterVol = 1;
@@ -538,7 +575,7 @@ class SongCore {
     const sig = trackSignature(track, section);
     let chain = this.chains.get(sig);
     if (!chain) {
-      chain = new Chain(track, section, this.bus);
+      chain = new Chain(track, section, this.bus, this.reverbBus);
       this.chains.set(sig, chain);
     }
     chain.lastUsedBar = songBar;
@@ -688,6 +725,7 @@ class SongCore {
     for (const c of this.chains.values()) c.dispose();
     this.chains.clear();
     for (const fx of this.masterFx) (fx.dispose ? fx.dispose() : fx.node.dispose());
+    this.reverbBus.dispose();
     this.bus.dispose();
     this.masterGain.dispose();
     this.limiter.dispose();

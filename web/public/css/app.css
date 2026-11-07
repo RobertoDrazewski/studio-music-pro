@@ -606,15 +606,14 @@ td .row { flex-wrap: nowrap; gap: 6px; }
   .bottom-nav button { display: flex; align-items: center; flex: 0 0 auto; flex-direction: row; gap: 8px; min-height: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 8px 18px; border: 1px solid transparent; border-radius: 10px; font-size: 14px; font-weight: 600; transition: color .15s, background .15s, box-shadow .15s; }
   .bottom-nav button:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
   .bottom-nav button[aria-current="true"], .bottom-nav button[aria-pressed="true"] { color: var(--accent); background: rgba(163, 230, 53, .08); border-color: rgba(163, 230, 53, .35); box-shadow: 0 0 18px rgba(163, 230, 53, .22), inset 0 0 12px rgba(163, 230, 53, .08); }
-  .bottom-nav button.live { color: var(--accent); border-color: rgba(163, 230, 53, .5); animation: nav-glow 1.6s ease-in-out infinite; }
-  @keyframes nav-glow { 50% { box-shadow: 0 0 26px rgba(163, 230, 53, .45); } }
+  .bottom-nav button.live { color: var(--accent); border-color: rgba(163, 230, 53, .5); box-shadow: 0 0 24px rgba(163, 230, 53, .4), inset 0 0 12px rgba(163, 230, 53, .12); }
   /* Panel izquierdo: se ve una sola herramienta a la vez, igual que en el celular */
   .studio[data-left] .side.left [data-pane] { display: none; }
   .studio[data-left="songs"] .side.left [data-pane="songs"], .studio[data-left="mixer"] .side.left [data-pane="mixer"], .studio[data-left="voices"] .side.left [data-pane="voices"] { display: flex; }
   .studio[data-ai="off"] { grid-template-columns: 300px minmax(0, 1fr); }
   .studio[data-ai="off"] .side.right { display: none; }
   .studio { grid-template-columns: 300px minmax(0, 1fr) 340px; }
-  .side { background: rgba(8, 15, 22, .82); backdrop-filter: blur(6px); }
+  .side { background: rgba(8, 15, 22, .94); }
   .meter { width: 8px; height: 28px; box-shadow: inset 0 0 0 1px #14232d; }
   .meter i { box-shadow: 0 0 8px rgba(163, 230, 53, .5); }
   .mix-card { transition: border-color .15s; }
@@ -681,12 +680,13 @@ td .row { flex-wrap: nowrap; gap: 6px; }
   .mix-card:not(.open) .nm-btn { text-overflow: ellipsis; padding-left: 4px; }
 }
 
-/* ---- Escritorio: el ícono de cada instrumento brilla con cada golpe que suena (la intensidad --hit la calcula el mezclador) ---- */
+/* ---- Escritorio: el instrumento brilla con cada golpe que suena (la intensidad --hit la calcula el mezclador) ----
+   Es una capa con degradado cuya opacidad cambia: no usa filtros ni sombras, que son caros de repintar en cada cuadro. */
 @media (min-width: 821px) {
-  .mix-row { --hit: 0; }
-  .mix-row > img { filter: drop-shadow(0 0 calc(var(--hit) * 10px) rgba(163, 230, 53, calc(var(--hit) * .9))) brightness(calc(1 + var(--hit) * .45)); transition: filter 60ms linear; }
-  .mix-card:not(.open) .mix-row { box-shadow: inset 0 0 calc(var(--hit) * 22px) rgba(163, 230, 53, calc(var(--hit) * .28)); }
+  .mix-row { --hit: 0; position: relative; }
+  .mix-row::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: var(--hit); will-change: opacity;
+    background: radial-gradient(circle at 28px 50%, rgba(163, 230, 53, .55), rgba(163, 230, 53, .12) 45%, transparent 75%); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mix-row > img { filter: none; }
+  .mix-row::after { display: none; }
 }
