@@ -104,9 +104,30 @@ export async function mount(root, projectId) {
   // Insignias de la barra inferior: número de voces por generar y punto de la IA trabajando.
   const badges = {}, counts = {};
   const setBadge = (id, n) => { counts[id] = n; if (badges[id]) { badges[id].textContent = n > 1 ? String(n) : ''; badges[id].hidden = !n; } };
-  // Barra de progreso global: se ve en todas las pestañas mientras la IA escribe.
-  const activity = h('div', { class: 'activity', hidden: true, role: 'status' }, h('i'), h('span', {}));
-  const showActivity = (text) => { activity.hidden = !text; activity.lastChild.textContent = text || ''; setBadge('ai', text ? 1 : 0); };
+  // Barra de progreso global: se ve en todas las pestañas mientras la IA trabaja.
+  // La IA no avisa cuánto falta, así que avanzo la barra de forma estimada (llega a ~92% y espera) y muestro los segundos.
+  const actFill = h('i');
+  const actText = h('span', {});
+  // Botón para frenar: corta la espera en el navegador (el servidor puede terminar igual el pedido que ya mandé).
+  let aiAbort = null;
+  const cancelBtn = h('button', { class: 'btn small', type: 'button', onclick: () => aiAbort?.abort() }, 'Cancel');
+  const activity = h('div', { class: 'activity', hidden: true, role: 'status' }, h('div', { class: 'act-track' }, actFill), h('div', { class: 'act-row' }, actText, cancelBtn));
+  let actTimer = 0;
+  const showActivity = (text) => {
+    clearInterval(actTimer);
+    activity.hidden = !text;
+    setBadge('ai', text ? 1 : 0);
+    if (!text) return;
+    const t0 = Date.now();
+    const draw = () => {
+      const sec = (Date.now() - t0) / 1000;
+      const pct = Math.min(92, (1 - Math.exp(-sec / 12)) * 100);
+      actFill.style.width = `${pct.toFixed(0)}%`;
+      actText.textContent = `${text} ${Math.round(pct)}% · ${Math.round(sec)} s`;
+    };
+    draw();
+    actTimer = setInterval(draw, 250);
+  };
   const mixerUi = createMixer({ mixWithAi: () => runAi('edit', MIX_PROMPT), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
@@ -223,7 +244,8 @@ export async function mount(root, projectId) {
     aiNote.textContent = 'Writing your song… (up to 30 seconds)';
     showActivity(fixedPrompt ? 'AI is mixing your song…' : 'AI is writing your song…');
     try {
-      const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value);
+      aiAbort = new AbortController();
+      const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value, aiAbort.signal);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
       if (player.playing) {
         editor.setValue(res.code); // entra en vivo en el compás siguiente
@@ -237,9 +259,11 @@ export async function mount(root, projectId) {
       if (res.warnings?.length) toast(`Generated with ${res.warnings.length} warning(s). Check the editor.`, 'info');
       else toast('Done. Press play to listen.', 'ok');
     } catch (e) {
-      toast(e.message, 'error', 6500);
+      if (e.name === 'AbortError') toast('Cancelled. Your song was not changed.', 'info');
+      else toast(e.message, 'error', 6500);
     } finally {
       aiBtnNew.disabled = aiBtnEdit.disabled = false;
+      aiAbort = null;
       showActivity('');
       refreshAiNote();
       if (aiNote.textContent === 'Writing your song… (up to 30 seconds)') aiNote.textContent = old;

@@ -189,9 +189,11 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
   };
   const startMeters = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
 
+  // Arriba del mezclador: mezcla automática instantánea, los presets y, aparte, pedirle la mezcla a la IA (tarda).
   const quickBar = () => h('div', { class: 'mix-quick' },
-    h('button', { class: 'btn primary', type: 'button', onclick: mixWithAi }, icon('sparkles', { size: 16 }), ' Mix with AI'),
-    h('div', { class: 'mix-presets' }, Object.entries(MIXES).map(([id, m]) => h('button', { class: 'btn small', type: 'button', onclick: () => applyMix(id) }, m.label))));
+    h('button', { class: 'btn primary', type: 'button', onclick: () => applyMix('balanced') }, icon('sparkles', { size: 16 }), ' Auto mix'),
+    h('div', { class: 'mix-presets' }, Object.entries(MIXES).map(([id, m]) => h('button', { class: 'btn small', type: 'button', onclick: () => applyMix(id) }, m.label))),
+    h('button', { class: 'btn small', type: 'button', onclick: mixWithAi }, 'Ask the AI to mix (about 30 s)'));
 
   function build() {
     refreshers.length = 0;

@@ -684,7 +684,10 @@ export default {
  "2 · Edit current song": "2 · Edita la canción actual",
  "Or write a new song with AI": "O escribe una canción nueva con IA",
  "AI is writing your song…": "La IA está escribiendo tu canción…",
- "AI is mixing your song…": "La IA está mezclando tu canción…"
+ "AI is mixing your song…": "La IA está mezclando tu canción…",
+ "Auto mix": "Mezcla automática",
+ "Ask the AI to mix (about 30 s)": "Pedirle la mezcla a la IA (unos 30 s)",
+ "Cancelled. Your song was not changed.": "Cancelado. Tu canción no cambió."
 },
   patterns: [
   [/^Delete (.+)$/, (n) => `Eliminar ${n}`],

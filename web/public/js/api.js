@@ -51,7 +51,7 @@ export const api = {
   shareProject: (id, enabled) => request('POST', `/api/projects/${id}/share`, { enabled }),
   sharedSong: (slug) => request('GET', `/api/share/${encodeURIComponent(slug)}`, undefined, { quiet401: true }),
 
-  generate: (prompt, code, style) => request('POST', '/api/ai/generate', { prompt, ...(code ? { code } : {}), ...(style ? { style } : {}) }),
+  generate: (prompt, code, style, signal) => request('POST', '/api/ai/generate', { prompt, ...(code ? { code } : {}), ...(style ? { style } : {}) }, { signal }),
 
   // Returns { blob, cached } or throws ApiError (404 VOICE_NOT_CACHED when onlyCached and missing).
   voice: async ({ text, voice, style, onlyCached }) => {
