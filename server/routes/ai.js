@@ -7,6 +7,7 @@ import { z, validate, HttpError } from '../http.js';
 import { extractCode } from '../services/openai.js';
 import { parse, formatErrors } from '../../shared/lang/parser.js';
 import { songInstruments } from '../../shared/lang/plan.js';
+import { normalizeNotes } from '../../shared/lang/repair.js';
 import { GENERATOR_SYSTEM_PROMPT, LANGUAGE_GUIDE, buildGeneratorMessages, buildRepairPrompt } from '../../shared/lang/guide.js';
 import { VOICES, LIMITS, EFFECTS } from '../../shared/lang/spec.js';
 import { STYLE_BY_ID, enforceStyleTempo, setBpmInCode } from '../../shared/lang/styles.js';
@@ -77,7 +78,8 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
     };
 
     let attempt = await ask(built.messages, { onDelta, signal });
-    let result = extractCode(attempt.text);
+    // Antes de validar corrijo errores típicos de los modelos (por ejemplo "ef3" en vez de "eb3").
+    let result = normalizeNotes(extractCode(attempt.text));
     let check = parse(result);
 
     // Un intento automático de reparación si el modelo usó algo que no existe.
@@ -87,7 +89,7 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
         { role: 'system', content: GENERATOR_SYSTEM_PROMPT },
         { role: 'user', content: buildRepairPrompt(result, formatErrors(check.errors)) },
       ], { signal });
-      result = extractCode(attempt.text);
+      result = normalizeNotes(extractCode(attempt.text));
       check = parse(result);
     }
 

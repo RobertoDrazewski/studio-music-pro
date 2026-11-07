@@ -459,3 +459,18 @@ test('AI stream: sends progress lines, then the validated song, and passes the l
   // los chequeos previos siguen siendo errores HTTP normales
   assert.equal((await u.client.raw('POST', '/api/ai/generate-stream', { prompt: 'x' })).status, 400);
 });
+
+test('AI: fixes badly written flats and sharps (ef3, cs4) before validating, without touching voice text', async () => {
+  const fake2 = await startFakeOpenAI();
+  const app2 = await startApp({ openaiUrl: fake2.url });
+  after(async () => { await app2.stop(); await fake2.close(); });
+  const admin = await loginAdmin(app2.base);
+  const u = await createUser(app2.base, admin, { email: 'aifix@example.com', aiMonthlyQuota: 3 });
+  const bad = 'bpm 120\nsection main 8\n  kick "x . . . x . . ."\n  pad "[c3,AB3,ef3] _ cs4 ." saw\n  voice "play ef3 and cs4" female bar 2';
+  fake2.state.replies.push(bad);
+  const r = await u.client.post('/api/ai/generate', { prompt: 'deep house' });
+  assert.equal(r.status, 200);
+  assert.match(r.data.code, /pad "\[c3,ab3,eb3\] _ c#4 \."/);
+  assert.match(r.data.code, /voice "play ef3 and cs4"/);
+  assert.equal(fake2.state.requests.length, 1); // no hizo falta el reintento de reparación
+});

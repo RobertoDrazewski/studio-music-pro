@@ -44,6 +44,7 @@ PATTERNS (inside double quotes, steps separated by spaces, one pattern = one bar
   x      drum hit (drums only)
   c2 eb3 f#4   notes (melodic only): letter, optional # or b, octave digit
   [c3,eb3,g3]  chord (melodic only), notes separated by commas
+  Notes: flats use b (eb3, bb2) and sharps use # (f#4, c#3). Never write ef3, af3, cs4 or uppercase notes.
   step*2       play the step twice inside its slot (max ${LIMITS.maxRepeat})
   step?        play the step with 50% probability
   Use 4, 8 or 16 steps per pattern (max ${LIMITS.maxStepsPerPattern}).
