@@ -16,6 +16,8 @@ import { createVoicesPanel } from '../voices.js';
 import { makeEdit, createTempoBar, createMixer, createPatternEditor } from '../controls.js';
 import { session, navigate, link, brand } from '../main.js';
 
+const MIX_PROMPT = 'Rebalance the mix only: set sensible volume, pan, reverb and filter on each instrument so it sounds clear, punchy and wide. Do not change notes, patterns, sections or tempo.';
+
 const STARTER = `// New song. Press play, then edit while it runs.
 bpm 120
 key a minor
@@ -98,10 +100,16 @@ export async function mount(root, projectId) {
   // ---------- visual controls (all of them rewrite the code) ----------
   const edit = makeEdit(editor);
   const patternEditor = createPatternEditor({ player, edit, editor });
-  const mixerUi = createMixer({ player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
+  // Insignias de la barra inferior: número de voces por generar y punto de la IA trabajando.
+  const badges = {}, counts = {};
+  const setBadge = (id, n) => { counts[id] = n; if (badges[id]) { badges[id].textContent = n > 1 ? String(n) : ''; badges[id].hidden = !n; } };
+  // Barra de progreso global: se ve en todas las pestañas mientras la IA escribe.
+  const activity = h('div', { class: 'activity', hidden: true, role: 'status' }, h('i'), h('span', {}));
+  const showActivity = (text) => { activity.hidden = !text; activity.lastChild.textContent = text || ''; setBadge('ai', text ? 1 : 0); };
+  const mixerUi = createMixer({ mixWithAi: () => runAi('edit', MIX_PROMPT),  player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
-  const voicesPanel = createVoicesPanel({ player, edit, editor, session });
+  const voicesPanel = createVoicesPanel({ player, edit, editor, session, onPending: (n) => setBadge('voices', n) });
   player.on((e) => {
     if (e.type === 'parsed') renderDiag(e.result);
     if (e.type === 'state') renderDiag(player.result);
@@ -215,13 +223,14 @@ export async function mount(root, projectId) {
   const refreshAiNote = () => { aiNote.textContent = quotaText(); };
   refreshAiNote();
 
-  const runAi = async (mode) => {
-    const prompt = promptPanel.compose(mode).trim();
+  const runAi = async (mode, fixedPrompt) => {
+    const prompt = (fixedPrompt ?? promptPanel.compose(mode)).trim();
     if (prompt.length < 3) return toast('Pick some options or write what you want first', 'error');
     if (mode === 'new' && editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm('Replace the current song with a new one?')) return;
     aiBtnNew.disabled = aiBtnEdit.disabled = true;
     const old = aiNote.textContent;
     aiNote.textContent = 'Writing your song… (up to 30 seconds)';
+    showActivity(fixedPrompt ? 'AI is mixing your song…' : 'AI is writing your song…');
     try {
       const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
@@ -240,6 +249,7 @@ export async function mount(root, projectId) {
       toast(e.message, 'error', 6500);
     } finally {
       aiBtnNew.disabled = aiBtnEdit.disabled = false;
+      showActivity('');
       refreshAiNote();
       if (aiNote.textContent === 'Writing your song… (up to 30 seconds)') aiNote.textContent = old;
     }
@@ -387,7 +397,7 @@ export async function mount(root, projectId) {
     brand(), title, saveState, h('span', { class: 'spacer' }),
     session.mode === 'trial' ? h('span', { class: 'chip ok hide-sm', title: 'Invitation-only trial' }, 'beta') : null,
     h('button', { class: 'btn small hide-sm', onclick: typeDemo }, icon('terminal', { size: 14 }), ' Type the demo'),
-    createInstallButton(),
+    h('span', { class: 'hide-sm' }, createInstallButton()),
     h('button', { class: 'btn small', onclick: openShare }, icon('share', { size: 14 }), h('span', { class: 'hide-sm' }, ' Share')),
     h('button', { class: 'btn small primary', onclick: openExport }, icon('download', { size: 14 }), ' Export'),
     userMenu.el);
@@ -398,9 +408,13 @@ export async function mount(root, projectId) {
     h('div', { class: 'pane', 'data-pane': 'voices' }, h('h3', {}, 'Voices'), voicesPanel.el));
   const center = h('main', { class: 'center', 'data-pane': 'play' }, scope.el, transport.el, tempoBar.el,
     h('div', { class: 'term' }, h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'song.pulse')), editor.el, diag), patternEditor.el);
-  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('h3', {}, 'AI assistant'), styleSel, aiPrompt,
-    h('div', { class: 'row' }, aiBtnNew, aiBtnEdit, h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')), aiNote,
-    promptPanel.el, reference);
+  // Panel de IA en orden de uso: 1) plantilla, 2) editar la canción actual, 3) canción nueva. Todo desplegable.
+  const acc = (title, open, ...kids) => h('details', { class: 'acc', open }, h('summary', {}, title), h('div', { class: 'acc-body' }, ...kids));
+  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('h3', {}, 'AI assistant'),
+    acc('1 · Start from a template', !editor.value.trim() || editor.value.trim() === STARTER.trim(), styleSel,
+      h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')),
+    acc('2 · Edit current song', true, aiPrompt, promptPanel.el),
+    acc('Or write a new song with AI', false, h('div', { class: 'row' }, aiBtnNew)), aiNote, reference);
   // Bottom navigation (phones): one panel at a time.
   const TABS = [['songs', 'music', 'Songs'], ['mixer', 'sliders', 'Mixer'], ['play', 'play', 'Play'], ['voices', 'mic', 'Voices'], ['ai', 'sparkles', 'AI']];
   const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
@@ -411,9 +425,10 @@ export async function mount(root, projectId) {
     studio.scrollTop = 0;
   };
   for (const [id, ic, label] of TABS) {
-    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon(ic, { size: 21 })), h('span', {}, label)));
+    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon(ic, { size: 21 }), (badges[id] = h('b', { class: 'badge', hidden: true }))), h('span', {}, label)));
   }
-  root.append(h('div', { class: 'studio-page' }, topbar, studio, nav));
+  for (const id in counts) setBadge(id, counts[id]);
+  root.append(h('div', { class: 'studio-page' }, topbar, activity, studio, nav));
   renderList();
   title.addEventListener('input', renderList);
 

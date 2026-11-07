@@ -460,6 +460,7 @@ class SongCore {
     this.only = null; // Set of instruments to render (stems), or null for everything
 
     this.chains = new Map(); // signature -> Chain
+    this.activity = new Map(); // instrumento -> último golpe {t, vel}
     this.barCount = 0;
 
     // Master bus: user's master effects -> limiter -> out
@@ -583,7 +584,7 @@ class SongCore {
         for (let r = 0; r < ev.repeat; r++) {
           const accent = r === 0 ? 1 : 0.75;
           const dur = Math.max(0.02, slot * (DRUMS.includes(track.instrument) ? 0.9 : 0.95));
-          hits.push({ chain, t: t0 + r * slot, ev, dur, vel: vel * accent });
+          hits.push({ chain, inst: track.instrument, t: t0 + r * slot, ev, dur, vel: vel * accent });
         }
       }
     }
@@ -596,6 +597,8 @@ class SongCore {
       if (prev !== undefined && k.t <= prev + 0.0005) continue;
       lastHit.set(k.chain, k.t);
       k.chain.voice.trigger(k.t, k.ev, k.dur, k.vel);
+      // Guardo el último golpe de cada instrumento para que el mezclador dibuje su medidor.
+      this.activity.set(k.inst, { t: k.t, vel: k.vel });
     }
 
     // Spoken clips start at the beginning of their bar.

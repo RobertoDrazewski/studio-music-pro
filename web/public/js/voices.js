@@ -14,7 +14,7 @@ const Tone = window.Tone;
 
 const clean = (s) => s.replace(/["\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
 
-export function createVoicesPanel({ player, edit, editor, session }) {
+export function createVoicesPanel({ player, edit, editor, session, onPending = () => {} }) {
   const status = new Map(); // voiceKey -> 'ready' | 'missing' | 'loading' | 'error'
   const errors = new Map();
   const peeked = new Set();
@@ -242,6 +242,8 @@ export function createVoicesPanel({ player, edit, editor, session }) {
 
     const pending = missingList().filter((x) => x.voice !== 'mic').filter((v) => status.get(voiceKey(v)) !== 'loading');
     const distinct = new Map(pending.map((v) => [voiceKey(v), v]));
+    // Aviso a la pantalla cuántas voces faltan por generar para mostrar la insignia en la pestaña.
+    onPending(distinct.size);
     if (distinct.size > 1) {
       root.append(h('button', { class: 'btn small', type: 'button', onclick: async () => {
         if (!confirm(`Generate ${distinct.size} AI voices? Each one uses 1 of your monthly voices.`)) return;

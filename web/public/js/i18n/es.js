@@ -674,7 +674,17 @@ export default {
  "Origin not allowed": "Origen no permitido",
  "Invalid origin": "Origen no válido",
  "The demo includes one song. More songs come with a paid plan, available at launch.": "La demo incluye una canción. Más canciones vienen con un plan de pago, disponible en el lanzamiento.",
- "Downloads come with a paid plan, available at launch.": "Las descargas vienen con un plan de pago, disponible en el lanzamiento."
+ "Downloads come with a paid plan, available at launch.": "Las descargas vienen con un plan de pago, disponible en el lanzamiento.",
+ "Mix with AI": "Mezclar con IA",
+ "Balanced": "Equilibrada",
+ "Punchy": "Con pegada",
+ "Wide": "Amplia",
+ "Warm": "Cálida",
+ "1 · Start from a template": "1 · Empieza con una plantilla",
+ "2 · Edit current song": "2 · Edita la canción actual",
+ "Or write a new song with AI": "O escribe una canción nueva con IA",
+ "AI is writing your song…": "La IA está escribiendo tu canción…",
+ "AI is mixing your song…": "La IA está mezclando tu canción…"
 },
   patterns: [
   [/^Delete (.+)$/, (n) => `Eliminar ${n}`],

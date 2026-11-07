@@ -72,7 +72,7 @@ export function createTempoBar({ player, edit }) {
 // ---------------------------------------------------------------------------------------------
 // Mixer: one row per instrument with mute/solo and a panel of sliders
 // ---------------------------------------------------------------------------------------------
-export function createMixer({ player, edit, openPattern, exportStem = () => {} }) {
+export function createMixer({ player, edit, openPattern, exportStem = () => {}, mixWithAi = () => {} }) {
   const root = h('div', { class: 'mixer' });
   const scopeSel = h('select', { class: 'select small-select', 'aria-label': 'Where edits apply' },
     h('option', { value: 'all' }, 'Edits apply to: all sections'),
@@ -147,13 +147,60 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
     return h('div', { class: 'mix-body' }, wave, rows, actions);
   }
 
+  // Mezclas rápidas sin gastar IA: cada preset fija volumen, pan, reverb y filtro por grupo de instrumentos.
+  const MIXES = {
+    balanced: { label: 'Balanced', vol: { percussion: 0.95, bass: 1, mids: 0.8, lead: 0.9, voice: 1.1 }, pan: 0.25, reverb: { mids: 0.15, lead: 0.2 } },
+    punchy: { label: 'Punchy', vol: { percussion: 1.15, bass: 1.1, mids: 0.7, lead: 0.85, voice: 1.1 }, pan: 0.15, reverb: { mids: 0.05, lead: 0.05 } },
+    wide: { label: 'Wide', vol: { percussion: 0.95, bass: 1, mids: 0.85, lead: 0.9, voice: 1.1 }, pan: 0.6, reverb: { mids: 0.3, lead: 0.3 }, delay: { lead: 0.15 } },
+    warm: { label: 'Warm', vol: { percussion: 0.9, bass: 1.05, mids: 0.85, lead: 0.85, voice: 1.1 }, pan: 0.3, reverb: { mids: 0.2, lead: 0.2 }, lowpass: { mids: 7000, lead: 9000 } },
+  };
+  const applyMix = (id) => {
+    const m = MIXES[id];
+    const names = player.instruments;
+    let side = 1;
+    edit((code) => {
+      let c = code;
+      for (const n of names) {
+        const g = groupOf(n);
+        const put = (name, v) => { c = setTrackEffect(c, n, name, v, { section: null }); };
+        if (m.vol[g] !== undefined) put('vol', m.vol[g]);
+        if (m.reverb?.[g] !== undefined && n !== 'voice') put('reverb', m.reverb[g]);
+        if (m.delay?.[g] !== undefined) put('delay', m.delay[g]);
+        if (m.lowpass?.[g] !== undefined) put('lowpass', m.lowpass[g]);
+        // Solo abro el estéreo en mids, lead y otros; el bombo, el bajo y las voces quedan al centro.
+        if (['mids', 'lead', 'other'].includes(g)) { put('pan', Number((side * m.pan).toFixed(2))); side = -side; }
+      }
+      return c;
+    });
+  };
+
+  // Medidor de cada instrumento: lee el último golpe que dejó el motor y lo hace decaer.
+  const meters = new Map();
+  let rafId = 0;
+  const tick = () => {
+    if (!root.isConnected) { rafId = 0; return; }
+    const now = window.Tone?.now?.() ?? 0;
+    for (const [n, bar] of meters) {
+      const a = player.engine.core?.activity.get(n);
+      const lvl = a && player.playing && now >= a.t ? Math.min(1, a.vel * Math.exp(-(now - a.t) * 5)) : 0;
+      bar.style.transform = `scaleY(${lvl.toFixed(2)})`;
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+  const startMeters = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
+
+  const quickBar = () => h('div', { class: 'mix-quick' },
+    h('button', { class: 'btn primary', type: 'button', onclick: mixWithAi }, icon('sparkles', { size: 16 }), ' Mix with AI'),
+    h('div', { class: 'mix-presets' }, Object.entries(MIXES).map(([id, m]) => h('button', { class: 'btn small', type: 'button', onclick: () => applyMix(id) }, m.label))));
+
   function build() {
     refreshers.length = 0;
+    meters.clear();
     const names = player.instruments;
     const anySolo = player.solo.size > 0;
     clear(root);
     if (!names.length) return root.append(h('p', { class: 'muted' }, 'Instruments appear here when the code is valid.'));
-    root.append(scopeSel);
+    root.append(quickBar(), scopeSel);
     const GROUPS = [['percussion', 'Percussion'], ['bass', 'Bass'], ['mids', 'Mids'], ['lead', 'Lead'], ['voice', 'Voices'], ['other', 'Other']];
     const ordered = [];
     for (const [gid, label] of GROUPS) {
@@ -172,12 +219,19 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
     return finishBuild();
   }
 
+  function meterEl(n) {
+    const bar = h('i');
+    meters.set(n, bar);
+    return h('span', { class: 'meter', 'aria-hidden': 'true' }, bar);
+  }
+
   function card(n, anySolo) {
     {
       const open = opened.has(n);
       const row = h('div', { class: `mix-card${open ? ' open' : ''}` },
         h('div', { class: `mix-row${player.mute.has(n) || (anySolo && !player.solo.has(n)) ? ' dim' : ''}` },
           h('img', { src: `/img/instruments/${n}.png`, alt: '' }),
+          meterEl(n),
           h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? opened.delete(n) : opened.add(n); build(); } }, icon(open ? 'chevronDown' : 'arrowRight', { size: 14 }), ` ${n}`),
           h('button', { class: 'dl', title: `Download ${n} as WAV`, 'aria-label': `Download ${n} as WAV`, onclick: () => exportStem([n], n) }, icon('download', { size: 14 })),
           h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
@@ -189,6 +243,7 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
 
   function finishBuild() {
     refreshers.forEach((r) => r());
+    startMeters();
   }
 
   let key = '';
