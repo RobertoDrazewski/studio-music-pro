@@ -52,6 +52,36 @@ export const api = {
   sharedSong: (slug) => request('GET', `/api/share/${encodeURIComponent(slug)}`, undefined, { quiet401: true }),
 
   mix: (prompt, code, signal) => request('POST', '/api/ai/mix', { prompt, code }, { signal }),
+  // Genera una canción en streaming: llama a onProgress({chars, lines, repairing}) mientras escribe y devuelve la canción lista.
+  generateStream: async (payload, { signal, onProgress } = {}) => {
+    const res = await fetch('/api/ai/generate-stream', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      if (res.status === 401) window.dispatchEvent(new CustomEvent('auth:expired'));
+      throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.code);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.t === 'p') onProgress?.(ev);
+        else if (ev.t === 'done') return ev;
+        else if (ev.t === 'error') throw new ApiError(ev.status ?? 500, ev.error, ev.code);
+      }
+    }
+    throw new ApiError(0, 'The connection was interrupted. Try again.');
+  },
   generate: (prompt, code, style, signal) => request('POST', '/api/ai/generate', { prompt, ...(code ? { code } : {}), ...(style ? { style } : {}) }, { signal }),
 
   // Returns { blob, cached } or throws ApiError (404 VOICE_NOT_CACHED when onlyCached and missing).

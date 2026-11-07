@@ -40,15 +40,15 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
     code: z.string().max(config.limits.maxCodeBytes).optional(),
     // Un id de estilo de shared/lang/styles.js, o "auto" para detectarlo desde el pedido.
     style: z.string().max(40).optional(),
+    // Duración deseada de una canción nueva, en minutos.
+    minutes: z.number().int().min(1).max(4).optional(),
   });
 
   const inFlight = new Set(); // una generación a la vez por usuario
 
-  router.post('/generate', limiter, async (req, res) => {
-    const { prompt, code, style: styleId } = validate(schema, req.body);
+  // Chequeos previos: estilo válido, cuota, presupuesto y una sola generación por usuario. Devuelve el estado de la cuota.
+  function begin(user, styleId) {
     if (styleId && styleId !== 'auto' && styleId !== 'none' && !STYLE_BY_ID[styleId]) throw new HttpError(400, 'Unknown style');
-    const user = req.user;
-
     const status = quota.aiStatus(user);
     if (status.remaining !== null && status.remaining <= 0) {
       throw new HttpError(429, 'You used all your AI generations for this month', { code: 'AI_QUOTA_EXCEEDED' });
@@ -57,69 +57,127 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
       throw new HttpError(503, 'AI generation is paused for this month', { code: 'AI_BUDGET_EXCEEDED' });
     }
     if (inFlight.has(user.id)) throw new HttpError(409, 'A generation is already running');
-
     inFlight.add(user.id);
-    let promptTokens = 0;
-    let completionTokens = 0;
+    return status;
+  }
+
+  // Genera (o edita) una canción y la valida. `usage` acumula los tokens gastados aunque falle a mitad de camino.
+  async function generateSong({ prompt, code, styleId, minutes }, usage, { onDelta, onRepair, signal } = {}) {
+    const built = buildGeneratorMessages({ prompt, code, styleId, minutes });
+    const count = (a) => { usage.promptTokens += a.promptTokens; usage.completionTokens += a.completionTokens; };
+    const ask = async (messages, opts) => {
+      try {
+        const a = await openai.chat(messages, opts);
+        count(a);
+        return a;
+      } catch (err) {
+        if (err.partial) count(err.partial);
+        throw err;
+      }
+    };
+
+    let attempt = await ask(built.messages, { onDelta, signal });
+    let result = extractCode(attempt.text);
+    let check = parse(result);
+
+    // Un intento automático de reparación si el modelo usó algo que no existe.
+    if (!check.ok) {
+      onRepair?.();
+      attempt = await ask([
+        { role: 'system', content: GENERATOR_SYSTEM_PROMPT },
+        { role: 'user', content: buildRepairPrompt(result, formatErrors(check.errors)) },
+      ], { signal });
+      result = extractCode(attempt.text);
+      check = parse(result);
+    }
+
+    if (!check.ok) {
+      const why = formatErrors(check.errors.slice(0, 2));
+      console.error(`[ai] invalid output after repair: ${why.replace(/\n/g, ' | ')}`);
+      throw new HttpError(502, `The AI could not produce valid code this time (${why.split('\n')[0]}). Try again, or simplify the clicks.`, {
+        code: 'AI_INVALID_OUTPUT',
+      });
+    }
+
+    // Guarda determinista del tempo: a los modelos les gusta derivar a 120-130 bpm sin importar el estilo.
+    let tempoAdjusted = false;
+    if (built.explicitBpm && check.ast.bpm !== built.explicitBpm) {
+      result = setBpmInCode(result, built.explicitBpm);
+      tempoAdjusted = true;
+    } else if (!code && built.style && !built.explicitBpm) {
+      const fix = enforceStyleTempo(result, built.style, check.ast.bpm);
+      if (fix.changed) {
+        result = fix.code;
+        tempoAdjusted = true;
+      }
+    }
+    if (tempoAdjusted) check = parse(result);
+
+    return { code: result, warnings: check.warnings, style: built.style?.id ?? null, tempoAdjusted };
+  }
+
+  // Las generaciones fallidas que igual gastaron tokens cuentan para el gasto, pero no para la cuota del usuario.
+  function finish(user, usage, ok) {
+    inFlight.delete(user.id);
+    if (usage.promptTokens || usage.completionTokens || ok) {
+      quota.recordAiUsage({ userId: user.id, model: openai.model, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, ok });
+    }
+  }
+
+  const remainingAfter = (status) => (status.remaining === null ? { remaining: null } : { remaining: Math.max(0, status.remaining - 1) });
+
+  router.post('/generate', limiter, async (req, res) => {
+    const { prompt, code, style: styleId, minutes } = validate(schema, req.body);
+    const user = req.user;
+    const status = begin(user, styleId);
+    const usage = { promptTokens: 0, completionTokens: 0 };
     let ok = false;
     try {
-      const built = buildGeneratorMessages({ prompt, code, styleId });
-      const messages = built.messages;
-
-      let attempt = await openai.chat(messages);
-      promptTokens += attempt.promptTokens;
-      completionTokens += attempt.completionTokens;
-      let result = extractCode(attempt.text);
-      let check = parse(result);
-
-      // Un intento automático de reparación si el modelo usó algo que no existe.
-      if (!check.ok) {
-        attempt = await openai.chat([
-          { role: 'system', content: GENERATOR_SYSTEM_PROMPT },
-          { role: 'user', content: buildRepairPrompt(result, formatErrors(check.errors)) },
-        ]);
-        promptTokens += attempt.promptTokens;
-        completionTokens += attempt.completionTokens;
-        result = extractCode(attempt.text);
-        check = parse(result);
-      }
-
-      if (!check.ok) {
-        const why = formatErrors(check.errors.slice(0, 2));
-        console.error(`[ai] invalid output after repair: ${why.replace(/\n/g, ' | ')}`);
-        throw new HttpError(502, `The AI could not produce valid code this time (${why.split('\n')[0]}). Try again, or simplify the clicks.`, {
-          code: 'AI_INVALID_OUTPUT',
-        });
-      }
-
-      // Guarda determinista del tempo: a los modelos les gusta derivar a 120-130 bpm sin importar el estilo.
-      let tempoAdjusted = false;
-      if (built.explicitBpm && check.ast.bpm !== built.explicitBpm) {
-        result = setBpmInCode(result, built.explicitBpm);
-        tempoAdjusted = true;
-      } else if (!code && built.style && !built.explicitBpm) {
-        const fix = enforceStyleTempo(result, built.style, check.ast.bpm);
-        if (fix.changed) {
-          result = fix.code;
-          tempoAdjusted = true;
-        }
-      }
-      if (tempoAdjusted) check = parse(result);
-
+      const out = await generateSong({ prompt, code, styleId, minutes }, usage);
       ok = true;
-      res.json({
-        code: result,
-        warnings: check.warnings,
-        style: built.style?.id ?? null,
-        tempoAdjusted,
-        quota: quota.aiStatus(user).remaining === null ? { remaining: null } : { remaining: Math.max(0, status.remaining - 1) },
-      });
+      res.json({ ...out, quota: remainingAfter(status) });
     } finally {
-      inFlight.delete(user.id);
-      // Las generaciones fallidas que igual gastaron tokens cuentan para el gasto, pero no para la cuota del usuario.
-      if (promptTokens || completionTokens || ok) {
-        quota.recordAiUsage({ userId: user.id, model: openai.model, promptTokens, completionTokens, ok });
-      }
+      finish(user, usage, ok);
+    }
+  });
+
+  // Igual que /generate pero en streaming (una línea JSON por evento): el navegador ve el avance real y la conexión nunca queda
+  // muda (Cloudflare corta las que pasan de 100 s sin datos). Eventos: {t:'p', chars, lines}, {t:'done', ...}, {t:'error', ...}.
+  router.post('/generate-stream', limiter, async (req, res) => {
+    const { prompt, code, style: styleId, minutes } = validate(schema, req.body);
+    const user = req.user;
+    const status = begin(user, styleId);
+    const usage = { promptTokens: 0, completionTokens: 0 };
+    let ok = false;
+    const abort = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) abort.abort(); });
+    res.status(200).set({ 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+    res.flushHeaders();
+    const send = (event) => { if (!res.writableEnded) res.write(`${JSON.stringify(event)}\n`); };
+    send({ t: 'p', chars: 0, lines: 0 });
+    let last = 0;
+    let ping = null;
+    try {
+      const out = await generateSong({ prompt, code, styleId, minutes }, usage, {
+        signal: abort.signal,
+        onDelta: (_piece, text) => {
+          const now = Date.now();
+          if (now - last < 150) return;
+          last = now;
+          send({ t: 'p', chars: text.length, lines: text.split('\n').length });
+        },
+        // Mientras se repara no llegan pedazos: mando un latido cada pocos segundos para que la conexión siga viva.
+        onRepair: () => { send({ t: 'p', repairing: true }); ping = setInterval(() => send({ t: 'p', repairing: true }), 4000); },
+      });
+      ok = true;
+      send({ t: 'done', ...out, quota: remainingAfter(status) });
+    } catch (err) {
+      send({ t: 'error', error: err instanceof HttpError ? err.message : 'Something went wrong. Try again.', code: err.extra?.code, status: err.status ?? 500 });
+      if (!(err instanceof HttpError)) console.error('[ai] stream failed:', err);
+    } finally {
+      clearInterval(ping);
+      finish(user, usage, ok);
+      res.end();
     }
   });
 

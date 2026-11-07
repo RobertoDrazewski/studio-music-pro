@@ -84,7 +84,7 @@ export function loadConfig(overrides = {}) {
       // Verificá el nombre del modelo en tu cuenta de OpenAI antes de salir en vivo.
       model: env.OPENAI_MODEL || 'gpt-4o-mini',
       // Los modelos de razonamiento cuentan su pensamiento oculto dentro de este límite, así que lo dejo generoso.
-      maxOutputTokens: int(env.OPENAI_MAX_OUTPUT_TOKENS, 4000),
+      maxOutputTokens: int(env.OPENAI_MAX_OUTPUT_TOKENS, 6000),
       // Opcional: low | medium | high. Solo para modelos de razonamiento; vacío para el resto.
       reasoningEffort: env.OPENAI_REASONING_EFFORT || '',
       timeoutMs: int(env.OPENAI_TIMEOUT_MS, 60_000),

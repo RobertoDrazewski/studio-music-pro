@@ -25,6 +25,15 @@ export async function startFakeOpenAI() {
         res.writeHead(status, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(body));
       }
+      // Con stream:true respondo como OpenAI: eventos "data:" con pedazos del texto y un último con el uso.
+      if (state.requests.at(-1).body.stream) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        const text = next ?? '';
+        const cut = Math.max(1, Math.ceil(text.length / 4));
+        for (let i = 0; i < text.length; i += cut) res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(i, i + cut) } }] })}\n\n`);
+        res.write(`data: ${JSON.stringify({ choices: [], usage: state.usage })}\n\n`);
+        return res.end('data: [DONE]\n\n');
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ choices: [{ message: { content: next ?? '' } }], usage: state.usage }));
     });
@@ -86,7 +95,7 @@ export function client(base) {
       else cookie = pair;
     }
     const ct = res.headers.get('content-type') || '';
-    const data = ct.includes('json') ? await res.json() : await res.arrayBuffer();
+    const data = ct.includes('application/json') ? await res.json() : await res.arrayBuffer();
     return { status: res.status, data, headers: res.headers };
   }
   return {

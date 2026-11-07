@@ -6,6 +6,7 @@ import { DEMO_SONG } from '../../shared/lang/demo.js';
 import { exportStem } from '../export.js';
 import { openShare as openShare0 } from './studio-share.js';
 import { openExport as openExport0 } from './studio-export.js';
+import { openNewSong } from './studio-new.js';
 import { STYLES, STYLE_BY_ID } from '../../shared/lang/styles.js';
 import { openManual } from '../manual.js';
 import { insertLineInSection, setTrackEffect } from '../../shared/lang/edit.js';
@@ -167,10 +168,12 @@ export async function mount(root, projectId) {
     await flush();
     if (user.limits?.maxProjects && projects.length >= user.limits.maxProjects) return modal({ title: 'The demo has one song', body: h('div', { class: 'pf' }, h('p', {}, 'Keep editing your song, or delete it to start another. More songs come with a paid plan, available at launch.')), actions: [h('a', { class: 'btn primary', href: '/#plans' }, 'See plans')] });
     if (projects.length >= 50) return toast('You reached the project limit', 'error');
-    try {
-      const { project: p } = await api.createProject('Untitled song', STARTER);
-      navigate(`/studio/${p.id}`);
-    } catch (e) { toast(e.message, 'error'); }
+    // El asistente pregunta nombre, estilo, sonido y duración, y crea la canción con la IA (o vacía, si se prefiere).
+    openNewSong({
+      createBlank: (name, code) => api.createProject(name, code ?? STARTER),
+      onCreated: (p) => navigate(`/studio/${p.id}`),
+      onQuota: (q) => { if (session.quota?.ai && q) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: q.remaining } }; },
+    });
   };
   const removeProject = async (p) => {
     if (!confirm(`Delete “${p.title}”? This cannot be undone.`)) return;
@@ -212,7 +215,10 @@ export async function mount(root, projectId) {
     const style = STYLE_BY_ID[styleSel.value];
     if (!style) return toast('Pick a style first', 'error');
     if (!confirmReplace(`Replace the current code with the ${style.name} template?`)) return;
-    await typeSong(style.example, 90);
+    // La plantilla entra de una vez (sin tipeo lento) y suena en el próximo compás si ya estaba sonando.
+    typingAbort?.abort();
+    editor.setValue(style.example);
+    editor.onChange?.(editor.value);
     if (!/\b(template|reference)\b/.test(title.value)) { title.value = `${style.name} template`; title.dispatchEvent(new Event('input')); }
   };
   const aiPrompt = h('textarea', { class: 'textarea', maxlength: 600, placeholder: 'Write anything you want, in your own words. It is added to the clicks above.' });
@@ -283,13 +289,9 @@ export async function mount(root, projectId) {
       aiWait = waitTimer;
       const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value, aiAbort.signal);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
-      if (player.playing) {
-        editor.setValue(res.code); // entra en vivo en el compás siguiente
-      } else {
-        await window.Tone.start();
-        await editor.typeIn(res.code, { cps: 160, onLine: (t) => player.sync(t.slice(0, t.lastIndexOf('\n') + 1)) });
-        editor.onChange?.(editor.value);
-      }
+      // La canción entra de una vez, sin tipeo lento; si ya estaba sonando, entra en vivo en el compás siguiente.
+      editor.setValue(res.code);
+      editor.onChange?.(editor.value);
       if (mode === 'edit') promptPanel.clearEdits();
       if (res.tempoAdjusted) toast(`Tempo adjusted to fit ${STYLE_BY_ID[res.style]?.name ?? 'the style'}.`, 'info');
       if (res.warnings?.length) toast(`Generated with ${res.warnings.length} warning(s). Check the editor.`, 'info');
@@ -307,7 +309,7 @@ export async function mount(root, projectId) {
       if (aiNote.textContent === 'Writing your song… (up to 30 seconds)') aiNote.textContent = old;
     }
   };
-  aiBtnNew.addEventListener('click', () => runAi('new'));
+  aiBtnNew.addEventListener('click', () => newProject());
   aiBtnEdit.addEventListener('click', () => runAi('edit'));
   aiPrompt.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runAi(editor.value.trim() ? 'edit' : 'new'); });
 

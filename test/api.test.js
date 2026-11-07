@@ -426,3 +426,36 @@ test('AI mix: returns only clamped per-instrument settings for instruments that 
   fake.state.replies.push('not json at all');
   assert.equal((await u.client.post('/api/ai/mix', { prompt: 'punchy and tight', code: VALID })).status, 502);
 });
+
+test('AI stream: sends progress lines, then the validated song, and passes the length to the model', async () => {
+  const fake2 = await startFakeOpenAI();
+  const app2 = await startApp({ openaiUrl: fake2.url });
+  after(async () => { await app2.stop(); await fake2.close(); });
+  const admin = await loginAdmin(app2.base);
+  const u = await createUser(app2.base, admin, { email: 'aistream@example.com', aiMonthlyQuota: 3 });
+  const parseLines = (buf) => Buffer.from(buf).toString('utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+  fake2.state.replies.push('```pulse\n' + VALID + '\n```');
+  const ok = await u.client.raw('POST', '/api/ai/generate-stream', { prompt: 'deep house', minutes: 2 });
+  assert.equal(ok.status, 200);
+  assert.match(ok.headers.get('content-type'), /ndjson/);
+  const events = parseLines(ok.data);
+  const done = events.at(-1);
+  assert.equal(done.t, 'done');
+  assert.equal(done.code, VALID);
+  assert.equal(done.quota.remaining, 2);
+  assert.ok(events.some((e) => e.t === 'p' && e.chars > 0));
+  const sent = fake2.state.requests.at(-1).body;
+  assert.equal(sent.stream, true);
+  assert.match(sent.messages[1].content, /about 2 minutes/);
+  assert.match(sent.messages[1].content, /QUALITY REFERENCE/);
+
+  // dos respuestas inválidas seguidas: el error llega como evento, no como corte de conexión
+  fake2.state.replies.push(INVALID, INVALID);
+  const bad = parseLines((await u.client.raw('POST', '/api/ai/generate-stream', { prompt: 'deep house' })).data);
+  assert.equal(bad.at(-1).t, 'error');
+  assert.equal(bad.at(-1).code, 'AI_INVALID_OUTPUT');
+
+  // los chequeos previos siguen siendo errores HTTP normales
+  assert.equal((await u.client.raw('POST', '/api/ai/generate-stream', { prompt: 'x' })).status, 400);
+});

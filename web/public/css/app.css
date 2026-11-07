@@ -690,3 +690,36 @@ td .row { flex-wrap: nowrap; gap: 6px; }
 @media (prefers-reduced-motion: reduce) {
   .mix-row::after { display: none; }
 }
+
+/* ---- Asistente de nueva canción: charla corta con botones de respuesta y una barra de avance real ---- */
+.nsw-modal { width: min(640px, 100%); }
+.nsw { display: flex; flex-direction: column; gap: 4px; }
+.nsw-thread { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: min(44vh, 400px); min-height: 150px; padding: 2px 2px 8px; }
+.nsw-msg { display: flex; }
+.nsw-msg.me { justify-content: flex-end; }
+.nsw-bub { max-width: 88%; padding: 10px 14px; border-radius: 14px 14px 14px 4px; background: var(--panel2); border: 1px solid var(--line); line-height: 1.45; font-size: 15px; }
+.nsw-msg.me .nsw-bub { border-radius: 14px 14px 4px 14px; background: rgba(163, 230, 53, .12); border-color: rgba(163, 230, 53, .38); color: var(--text); }
+.nsw-sum { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; font-size: 14px; color: var(--muted); }
+.nsw-sum b { color: var(--text); font-weight: 600; margin-right: 4px; }
+.nsw-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 8px; border-top: 1px solid var(--line); }
+.nsw-chip { padding: 8px 14px; border-radius: 999px; border: 1px solid #25394a; background: var(--panel2); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+.nsw-chip:hover { border-color: rgba(163, 230, 53, .6); }
+.nsw-chip[aria-pressed="true"] { background: rgba(163, 230, 53, .16); border-color: var(--accent); color: var(--accent); }
+.nsw-chip.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.nsw-chip.primary:hover { background: #b8f24f; }
+.nsw-composer { display: flex; gap: 8px; }
+.nsw-input { flex: 1; min-width: 0; padding: 11px 13px; border-radius: 10px; border: 1px solid #25394a; background: #07111a; color: var(--text); font: inherit; font-size: 16px; }
+.nsw-input:focus { outline: 2px solid rgba(163, 230, 53, .5); outline-offset: 1px; }
+.nsw-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.nsw-busy { display: grid; gap: 14px; padding: 10px 2px 6px; }
+.nsw-busy h3 { font-size: 20px; }
+.nsw-bar { height: 12px; border-radius: 999px; background: #0a1319; border: 1px solid var(--line); overflow: hidden; }
+.nsw-bar i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--cyan)); transition: width .35s ease; }
+.nsw-stat { color: var(--accent); font-variant-numeric: tabular-nums; margin: 0; }
+.nsw-error { color: var(--danger); margin: 0; }
+.nsw-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 820px) {
+  .nsw-thread { max-height: 34vh; min-height: 96px; }
+  .nsw-chip { padding: 9px 13px; }
+  .nsw-foot .btn { flex: 1 1 auto; }
+}
