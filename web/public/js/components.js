@@ -1,9 +1,9 @@
-// Small shared UI pieces: language switch, avatar.
+// Piezas de interfaz compartidas: selector de idioma y avatar.
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { LANGS, getLang, setLang } from './i18n.js';
 
-// "EN | ES" switch with a globe. Keeps itself in sync when the language changes from anywhere.
+// Selector "EN | ES" con un globo. Se mantiene sincronizado cuando el idioma cambia desde cualquier lado.
 export function langSwitch() {
   const wrap = h('div', { class: 'lang-switch', role: 'group', 'aria-label': 'Language' }, icon('globe', { size: 15 }));
   const buttons = LANGS.map(([code]) => {
@@ -17,7 +17,7 @@ export function langSwitch() {
   return wrap;
 }
 
-// Footer with authorship, rights, contact and the Puma Code site.
+// Pie de página con autoría, derechos, contacto y el sitio de Puma Code.
 export function siteFooter() {
   const year = new Date().getFullYear();
   return h('footer', { class: 'site-foot' },
@@ -36,7 +36,7 @@ export function initials(name = '') {
   return ((parts[0]?.[0] ?? '?') + (parts.length > 1 ? parts.at(-1)[0] : '')).toUpperCase();
 }
 
-// Round avatar: picture when the user has one, initials otherwise.
+// Avatar redondo: la foto si el usuario tiene una, las iniciales si no.
 export function avatarEl(user, size = 32) {
   const el = h('span', { class: 'avatar', 'data-notranslate': '', style: `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px` });
   if (user?.avatar) el.append(h('img', { src: user.avatar, alt: '' }));

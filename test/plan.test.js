@@ -32,7 +32,7 @@ test('planTrack: positions, holds and rests', () => {
   const ev = planTrack(a.sections[0].tracks[0], 0, 0);
   assert.equal(ev.length, 2);
   assert.deepEqual(ev.map((e) => e.position), [0, 0.75]);
-  assert.equal(ev[0].length, 0.5); // a1 + one hold = two of four steps
+  assert.equal(ev[0].length, 0.5); // a1 + una extensión = dos de cuatro pasos
   assert.equal(ev[1].length, 0.25);
   assert.deepEqual(ev[0].notes, ['a1']);
 });

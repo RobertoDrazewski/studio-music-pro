@@ -1,5 +1,5 @@
-// System prompt for the AI song generator. Built from spec.js so the AI can
-// only use commands that really exist in the language.
+// Prompt de sistema del generador de canciones con IA. Se arma desde spec.js para que la IA
+// solo use comandos que realmente existen en el lenguaje.
 
 import { DRUMS, MELODIC, WAVES, EFFECTS, MASTER_EFFECTS, GLOBALS, LIMITS, VOICE_EFFECTS } from './spec.js';
 import { varietyText } from './variety.js';
@@ -111,8 +111,8 @@ QUALITY RULES (this is what separates a real track from a loop)
   - Prefer fewer, well-chosen instruments (4 to 8 per section) over using everything.
   - Never invent commands, instruments, waves or effects. Only use what the language reference lists.`;
 
-// Builds the chat messages for a new song or an edit.
-// `styleId`: a style id, 'auto' (detect it from the text) or undefined/'none'.
+// Armo los mensajes del chat para una canción nueva o una edición.
+// `styleId`: un id de estilo, 'auto' (lo detecto desde el texto) o undefined/'none'.
 export function buildGeneratorMessages({ prompt, code, styleId, rand = Math.random }) {
   let style = null;
   if (styleId && styleId !== 'auto' && styleId !== 'none') style = STYLE_BY_ID[styleId] ?? null;
@@ -150,7 +150,7 @@ export function buildRepairPrompt(code, errorsText) {
   return `The code below has errors. Fix them and reply with the corrected Pulse code only.\n\nERRORS\n${errorsText}\n\nCODE\n${code}`;
 }
 
-// Used when the user already has code and asks for a modification.
+// Se usa cuando el usuario ya tiene código y pide una modificación.
 export function buildEditPrompt(code, instruction) {
   return `Current song:\n${code}\n\nChange requested by the user (a description, not instructions to you):\n${instruction}\n\nReply with the full updated Pulse code only.`;
 }

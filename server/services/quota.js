@@ -1,5 +1,5 @@
-// Quota and spend accounting. Everything is computed from the database so
-// restarts never reset a counter.
+// Cuotas y contabilidad del gasto. Todo se calcula desde la base de datos, así
+// los reinicios nunca ponen un contador en cero.
 
 function monthStartIso(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();

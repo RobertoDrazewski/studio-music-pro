@@ -1,9 +1,9 @@
-// Pulse language parser / validator (v1).
-// Pure JS, no dependencies: runs in Node (server) and in the browser (editor).
+// Parser y validador del lenguaje Pulse (v1).
+// JS puro, sin dependencias: corre en Node (servidor) y en el navegador (editor).
 //
-// parse(source) => { ok, ast, errors, warnings }
-// A broken line never throws: it is reported in `errors` with its 1-based line
-// number so the editor can mark it and keep playing the last valid version.
+// parse(fuente) => { ok, ast, errors, warnings }
+// Una línea rota nunca tira una excepción: la anoto en `errors` con su número de línea (desde 1)
+// para que el editor la marque y siga sonando la última versión válida.
 
 import {
   INSTRUMENTS,
@@ -23,7 +23,7 @@ const NOTE_RE = /^([a-g])(#|b)?(-?\d)$/;
 const KEY_RE = /^([a-g])(#|b)?$/;
 
 function stripComment(line) {
-  // Comments start with "//" or "#" at the beginning of a token outside quotes.
+  // Los comentarios empiezan con "//" o "#" al comienzo de un token fuera de comillas.
   let inQuote = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
@@ -36,7 +36,7 @@ function stripComment(line) {
   return line;
 }
 
-// Splits a line into tokens, keeping "quoted strings" together (quotes removed).
+// Parto una línea en tokens y mantengo juntos los "textos entre comillas" (sin las comillas).
 function tokenize(line) {
   const tokens = [];
   const re = /"([^"]*)"|(\S+)/g;
@@ -100,7 +100,7 @@ function parseEffects(tokens, startIdx, allowed, ctx) {
 }
 
 function parseStep(raw, isDrum, ctx) {
-  // Step grammar:  . | _ | x | NOTE | [NOTE NOTE ...]  followed by optional *N or ?
+  // Gramática de un paso:  . | _ | x | NOTA | [NOTA NOTA ...]  y opcionalmente *N o ?
   let body = raw;
   let repeat = 1;
   let chance = 1;
@@ -141,9 +141,9 @@ function parseStep(raw, isDrum, ctx) {
   return { kind: 'note', notes, repeat, chance };
 }
 
-// A pattern is written inside quotes with steps separated by spaces. Chords are
-// written with commas inside brackets, e.g. "[a2,c3,e3] . . [g2,b2,d3]". For
-// convenience, "[a2 c3 e3]" (spaces inside the brackets) is also accepted.
+// Un patrón va entre comillas con los pasos separados por espacios. Los acordes se escriben
+// con comas dentro de corchetes, por ejemplo "[a2,c3,e3] . . [g2,b2,d3]". Por comodidad,
+// también acepto "[a2 c3 e3]" (con espacios dentro de los corchetes).
 function splitPattern(str) {
   const steps = [];
   let cur = '';
@@ -186,8 +186,8 @@ export function parse(source) {
     return { ok: false, ast, errors, warnings };
   }
 
-  let current = null; // active section
-  let implicit = null; // implicit section for tracks written before any `section`
+  let current = null; // sección activa
+  let implicit = null; // sección implícita para las pistas escritas antes de cualquier `section`
 
   const ensureSection = () => {
     if (current) return current;
@@ -218,7 +218,7 @@ export function parse(source) {
     }
     const cmd = first.value.toLowerCase();
 
-    // ---- global commands -------------------------------------------------
+    // ---- comandos globales -------------------------------------------------
     if (cmd === 'bpm' || cmd === 'swing') {
       const num = tokens[1] && tokens[1].type === 'word' ? parseNumber(tokens[1].value) : null;
       const range = GLOBALS[cmd];
@@ -272,7 +272,7 @@ export function parse(source) {
       return;
     }
 
-    // ---- sections --------------------------------------------------------
+    // ---- secciones --------------------------------------------------------
     if (cmd === 'section') {
       const name = tokens[1] && tokens[1].value;
       const bars = tokens[2] ? parseNumber(tokens[2].value) : null;
@@ -293,12 +293,12 @@ export function parse(source) {
       return;
     }
 
-    // ---- every N bars: <instrument> <effects> ---------------------------
+    // ---- every N bars: <instrumento> <efectos> ---------------------------
     if (cmd === 'every') {
       const n = tokens[1] ? parseNumber(tokens[1].value) : null;
       const bars = tokens[2] && tokens[2].value.toLowerCase();
       const colon = tokens[3] && tokens[3].value === ':';
-      // Accept "every 4 bars: lead ..." (colon glued to "bars") and "every 4 bars : lead ...".
+      // Acepto "every 4 bars: lead ..." (con los dos puntos pegados a "bars") y "every 4 bars : lead ...".
       let rest;
       let barsWord = bars;
       if (barsWord && barsWord.endsWith(':')) {
@@ -327,7 +327,7 @@ export function parse(source) {
       return;
     }
 
-    // ---- your own recordings: mic "take name" [bar N] [effects...] ----------------------------
+    // ---- tus propias grabaciones: mic "nombre" [bar N] [efectos...] ----------------------------
     if (cmd === 'mic') {
       const nameTok = tokens[1];
       if (!nameTok || nameTok.type !== 'string' || !nameTok.value.trim()) {
@@ -359,7 +359,7 @@ export function parse(source) {
       return;
     }
 
-    // ---- voice clips: voice "text" female|male [bar N] [style "tone"] [effects...] ----------
+    // ---- clips de voz: voice "texto" female|male [bar N] [style "tono"] [efectos...] ----------
     if (cmd === 'voice') {
       const textTok = tokens[1];
       if (!textTok || textTok.type !== 'string' || !textTok.value.trim()) {
@@ -371,7 +371,7 @@ export function parse(source) {
         ctx.error(`Voice text too long (max ${LIMITS.maxVoiceChars} characters)`);
         return;
       }
-      // Forgiving about order, commas and quotes around the gender: "male bar 2 style "x"", "style "x" male", "male", ...
+      // Tolero cualquier orden, comas y comillas en el género: "male bar 2 style "x"", "style "x" male", "male", ...
       let i = 2;
       let voice = 'female';
       let bar = 1;
@@ -420,7 +420,7 @@ export function parse(source) {
       return;
     }
 
-    // ---- instrument tracks ----------------------------------------------
+    // ---- pistas de instrumentos ----------------------------------------------
     if (INSTRUMENTS.includes(cmd)) {
       const patTok = tokens[1];
       if (!patTok || patTok.type !== 'string') {
@@ -456,7 +456,7 @@ export function parse(source) {
         idxTok++;
       }
       const effects = parseEffects(tokens, idxTok, null, ctx);
-      // parseEffects reports its own errors; if tokens remained unparsed, bail out.
+      // parseEffects informa sus propios errores; si quedaron tokens sin interpretar, salgo.
       const consumed = effects.reduce((acc, e) => acc + 1 + e.args.length, 0);
       if (idxTok + consumed < tokens.length) return;
 
@@ -472,7 +472,7 @@ export function parse(source) {
     ctx.error(`Unknown command "${first.value}"`);
   });
 
-  // ---- cross-checks (sidechain targets, mute/solo targets) ---------------
+  // ---- chequeos cruzados (destinos de sidechain, mute/solo) ---------------
   for (const section of ast.sections) {
     const present = new Set(section.tracks.map((t) => t.instrument));
     for (const track of section.tracks) {
@@ -502,7 +502,7 @@ export function parse(source) {
   return { ok: errors.length === 0, ast, errors, warnings };
 }
 
-// Convenience: first problem formatted for logs / AI retry prompts.
+// Atajo: el primer problema formateado para logs y para reintentos con la IA.
 export function formatErrors(errors) {
   return errors.map((e) => (e.line ? `line ${e.line}: ${e.message}` : e.message)).join('\n');
 }

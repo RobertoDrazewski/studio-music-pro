@@ -130,7 +130,7 @@ test('projects: CRUD, ownership isolation and sharing', async () => {
   assert.equal(list.data.projects.length, 1);
   assert.equal(list.data.projects[0].code, undefined, 'list does not include code');
 
-  // sharing
+  // compartir
   const anon = client(app.base);
   const shared = await a.client.post(`/api/projects/${id}/share`, { enabled: true });
   const slug = shared.data.project.shareSlug;
@@ -166,7 +166,7 @@ test('AI: generates valid code, strips markdown fences and enforces the per-user
   assert.equal(r1.data.code, VALID);
   assert.equal(r1.data.quota.remaining, 1);
 
-  // the key and the language guide are sent to the provider, never to the browser
+  // la clave y la guía del lenguaje se mandan al proveedor, nunca al navegador
   const sent = fake.state.requests.at(-1);
   assert.equal(sent.headers.authorization, 'Bearer sk-test');
   assert.match(sent.body.messages[0].content, /Pulse is a tiny live-coding/);
@@ -276,7 +276,7 @@ test('AI: style detection adds the style brief and the tempo guard fixes the tem
   const u = await createUser(big.base, admin, { email: 'ai-style@example.com', aiMonthlyQuota: 10 });
   try {
 
-  // VALID is at 120 bpm: a reggae dub must not stay there.
+  // VALID está a 120 bpm: un reggae dub no puede quedarse ahí.
   fake.state.replies.push(VALID);
   const dub = await u.client.post('/api/ai/generate', { prompt: 'quiero un reggae dub lento' });
   assert.equal(dub.status, 200);
@@ -287,12 +287,12 @@ test('AI: style detection adds the style brief and the tempo guard fixes the tem
   assert.match(userMsg, /STYLE: Reggae Dub/);
   assert.match(userMsg, /ONE DROP/);
 
-  // An explicit tempo from the user wins over the style.
+  // Un tempo explícito del usuario gana sobre el estilo.
   fake.state.replies.push(VALID);
   const explicit = await u.client.post('/api/ai/generate', { prompt: 'techno at 140 bpm' });
   assert.match(explicit.data.code, /^bpm 140$/m);
 
-  // The style picker overrides detection; "none" turns the style off.
+  // El selector de estilo pisa la detección; "none" apaga el estilo.
   fake.state.replies.push(VALID);
   const picked = await u.client.post('/api/ai/generate', { prompt: 'something nice', style: 'drum-and-bass' });
   assert.equal(picked.data.style, 'drum-and-bass');
@@ -316,13 +316,13 @@ test('AI voices: cache is free, quota counts only generated clips, budget and va
   try {
     const before = fake.state.requests.length;
 
-    // Never generated: onlyCached must answer 404 and spend nothing.
+    // Nunca generado: onlyCached debe responder 404 y no gastar nada.
     const miss = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', onlyCached: true });
     assert.equal(miss.status, 404);
     assert.equal(miss.data.code, 'VOICE_NOT_CACHED');
     assert.equal(fake.state.requests.length, before);
 
-    // First real generation calls OpenAI with the mapped voice and the style as instructions.
+    // La primera generación real llama a OpenAI con la voz mapeada y el estilo como instrucciones.
     const a = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep' });
     assert.equal(a.status, 200);
     assert.equal(a.headers.get('content-type'), 'audio/mpeg');
@@ -333,26 +333,26 @@ test('AI voices: cache is free, quota counts only generated clips, budget and va
     assert.equal(sent.body.voice, big.config.openai.ttsVoiceMale);
     assert.equal(sent.body.instructions, 'slow and deep');
 
-    // Same phrase again: served from cache, no new OpenAI call, no quota used.
+    // La misma frase otra vez: sale del caché, sin llamada nueva a OpenAI ni cuota usada.
     const again = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep' });
     assert.equal(again.headers.get('x-voice-cached'), '1');
     const peek = await u.client.post('/api/ai/voice', { text: 'Jah love', voice: 'male', style: 'slow and deep', onlyCached: true });
     assert.equal(peek.status, 200);
     assert.equal(fake.state.requests.length, before + 1);
 
-    // Quota: 2 per month, the cached replay did not count.
+    // Cuota: 2 por mes, la repetición desde el caché no cuenta.
     assert.equal((await u.client.post('/api/ai/voice', { text: 'One love', voice: 'female' })).status, 200);
     const over = await u.client.post('/api/ai/voice', { text: 'Third phrase', voice: 'female' });
     assert.equal(over.status, 429);
     assert.equal(over.data.code, 'VOICE_QUOTA_EXCEEDED');
-    // A cached clip is still playable after the quota ran out.
+    // Un clip en caché sigue sonando después de agotada la cuota.
     assert.equal((await u.client.post('/api/ai/voice', { text: 'One love', voice: 'female' })).status, 200);
 
     const me = await u.client.get('/api/auth/me');
     assert.equal(me.data.quota.voice.used, 2);
     assert.equal(me.data.quota.voice.remaining, 0);
 
-    // Validation.
+    // Validación.
     assert.equal((await u.client.post('/api/ai/voice', { text: '', voice: 'female' })).status, 400);
     assert.equal((await u.client.post('/api/ai/voice', { text: 'x'.repeat(201), voice: 'female' })).status, 400);
     assert.equal((await u.client.post('/api/ai/voice', { text: 'hola', voice: 'robot' })).status, 400);

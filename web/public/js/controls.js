@@ -1,5 +1,5 @@
-// Visual controls that edit the code: tempo bar, mixer with sliders, and the step editor.
-// Every control calls `edit(fn)`, which rewrites the song text, so the code always shows what changed.
+// Controles visuales que editan el código: barra de tempo, mezclador con faders y editor de pasos.
+// Cada control llama a `edit(fn)`, que reescribe el texto de la canción, así el código siempre muestra qué cambió.
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
 import { DRUMS, MELODIC } from '/shared/lang/spec.js';
@@ -9,7 +9,7 @@ import { setGlobal, setTrackEffect, setTrackWave, setStep, resizePattern, transp
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const fx = (track, name) => track?.effects.find((e) => e.name === name)?.args[0];
 
-// Common helper: applies a text transformation to the editor (it saves and goes live like a typed change).
+// Ayudante común: aplica una transformación de texto al editor (se guarda y suena como si lo hubiera tipeado).
 export function makeEdit(editor) {
   return (fn) => {
     const next = fn(editor.value);
@@ -22,7 +22,7 @@ function currentAst(player) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Tempo bar
+// Barra de tempo
 // ---------------------------------------------------------------------------------------------
 export function createTempoBar({ player, edit }) {
   const num = h('input', { class: 'bpm-input', type: 'number', min: 40, max: 240, step: 1, 'aria-label': 'Tempo in beats per minute' });
@@ -70,7 +70,7 @@ export function createTempoBar({ player, edit }) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Mixer: one row per instrument with mute/solo and a panel of sliders
+// Mezclador: una fila por instrumento con mute/solo y un panel de faders
 // ---------------------------------------------------------------------------------------------
 export function createMixer({ player, edit, openPattern, exportStem = () => {}, mixWithAi = () => {} }) {
   const root = h('div', { class: 'mixer' });
@@ -117,7 +117,7 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
     const isDrum = DRUMS.includes(inst);
     const fxVal = (name, dflt) => () => fx(firstTrack(inst), name) ?? dflt;
     const setFx = (name, neutral) => (v) => edit((c) => setTrackEffect(c, inst, name, v === neutral ? null : v, sec()));
-    // Filter slider is logarithmic: 0..100 maps to 80 Hz..20 kHz (100 = no filter).
+    // El fader de filtro es logarítmico: 0..100 va de 80 Hz a 20 kHz (100 = sin filtro).
     const toHz = (p) => Math.round(80 * 250 ** (p / 100));
     const toPos = (hz) => clamp((Math.log(hz / 80) / Math.log(250)) * 100, 0, 100);
 
@@ -260,7 +260,7 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
 }
 
 // ---------------------------------------------------------------------------------------------
-// Step editor
+// Editor de pasos
 // ---------------------------------------------------------------------------------------------
 export function createPatternEditor({ player, edit, editor }) {
   const box = h('div', { class: 'pattern-editor hidden' });

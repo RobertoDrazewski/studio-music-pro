@@ -39,7 +39,7 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
   const { maxUploadMb, maxStems } = config.master;
   fs.mkdirSync(config.tmpDir, { recursive: true });
 
-  // Each request gets its own private directory, removed on failure or when the job ends.
+  // Cada pedido tiene su propio directorio privado, que se borra si falla o cuando termina el trabajo.
   const storage = multer.diskStorage({
     destination(req, _file, cb) {
       if (!req.uploadDir) {
@@ -85,10 +85,10 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
     });
   };
 
-  // ---- Upload sessions -----------------------------------------------------------------
-  // The browser sends each file in its own request. Cloudflare rejects request bodies over 100 MB,
-  // and a song with stems easily exceeds that in a single multipart request.
-  const sessions = new Map(); // uploadId -> { userId, dir, createdAt, mix, stems: Map(name -> path) }
+  // ---- Sesiones de subida -----------------------------------------------------------------
+  // El navegador manda cada archivo en su propio pedido. Cloudflare rechaza cuerpos de más de 100 MB,
+  // y una canción con stems pasa eso fácilmente en un solo multipart.
+  const sessions = new Map(); // uploadId -> { userId, dir, createdAt, mix, stems: Map(nombre -> ruta) }
   const SESSION_TTL_MS = 60 * 60 * 1000;
   const dropSession = (id) => {
     const s = sessions.get(id);
@@ -108,7 +108,7 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
   }
 
   router.post('/uploads', (req, res) => {
-    // Keep at most 3 open sessions per user: the oldest ones are discarded.
+    // Dejo como máximo 3 sesiones abiertas por usuario: las más viejas se descartan.
     const mine = [...sessions].filter(([, s]) => s.userId === req.user.id).sort((a, b) => a[1].createdAt - b[1].createdAt);
     while (mine.length >= 3) dropSession(mine.shift()[0]);
     const id = crypto.randomUUID();
@@ -118,7 +118,7 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
     res.status(201).json({ uploadId: id, maxFileMb: maxUploadMb, maxStems });
   });
 
-  // Streams the request body to disk with a size limit and verifies it is a WAV file.
+  // Paso el cuerpo del pedido a disco con un límite de tamaño y verifico que sea un WAV.
   async function receiveWav(req, session) {
     if (!/^audio\/(x-)?(wav|wave|vnd\.wave)$/i.test(req.headers['content-type'] ?? '')) {
       throw new HttpError(400, 'Send the file as audio/wav');
@@ -173,13 +173,13 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
     res.json({ ok: true, name });
   });
 
-  // Starts a job. Files come either from an upload session (JSON body with `uploadId`)
-  // or from a single multipart request (fields "mix" and "stems"), handy for scripts and small files.
+  // Arranco un trabajo. Los archivos vienen de una sesión de subida (cuerpo JSON con `uploadId`)
+  // o de un solo pedido multipart (campos "mix" y "stems"), útil para scripts y archivos chicos.
   router.post('/', wrapUpload, (req, res) => {
     let uploadDir = req.uploadDir;
     let fromSession = null;
-    // A failed multipart request is cleaned up right away; an upload session is kept so the
-    // browser can retry without sending everything again (the TTL sweeper removes it eventually).
+    // Un multipart fallido se limpia enseguida; una sesión de subida se conserva para que el
+    // navegador pueda reintentar sin mandar todo de nuevo (el barrendero por TTL la borra al final).
     const cleanup = () => !fromSession && uploadDir && fs.rmSync(uploadDir, { recursive: true, force: true });
     try {
       const body = validate(bodySchema, req.body);
@@ -202,7 +202,7 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
           if (!looksLikeWav(f.path)) throw new HttpError(400, `"${f.originalname}" is not a valid WAV file`);
         }
         mixPath = mixFile.path;
-        // Stem names are sanitized and made unique; they end up inside the ZIP.
+        // Los nombres de stems se limpian y se hacen únicos; terminan dentro del ZIP.
         const used = new Set();
         stems = stemFiles.map((f, i) => {
           const base = slugify(path.parse(f.originalname).name) || `stem-${i + 1}`;
@@ -240,7 +240,7 @@ export function masterRoutes({ db, config, auth, quota, jobs }) {
         stems,
         uploadDir,
       });
-      if (fromSession) sessions.delete(fromSession); // the job owns the files from now on
+      if (fromSession) sessions.delete(fromSession); // desde ahora los archivos son del trabajo
       res.status(202).json({ job: jobToApi(db.prepare('SELECT * FROM jobs WHERE id = ?').get(id)) });
     } catch (err) {
       cleanup();

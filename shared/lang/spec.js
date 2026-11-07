@@ -1,6 +1,6 @@
-// Single source of truth for the Pulse language (v1).
-// Used by the parser, by the AI system prompt and (later) by the web editor
-// for autocompletion and syntax highlighting.
+// Fuente única de verdad del lenguaje Pulse (v1).
+// La usan el parser, el prompt de sistema de la IA y (más adelante) el editor web
+// para autocompletado y resaltado de sintaxis.
 
 export const DRUMS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc'];
 export const MELODIC = ['bass', 'sub', 'pad', 'strings', 'organ', 'keys', 'stab', 'lead', 'synth', 'bell', 'pluck', 'arp'];
@@ -29,8 +29,8 @@ export const DEFAULT_WAVE = {
   bell: 'sine',
 };
 
-// Effect definitions: number of numeric args (min..max) and allowed range.
-// `optional: true` means the argument can be omitted.
+// Definición de efectos: cantidad de argumentos numéricos (mín..máx) y rango permitido.
+// `optional: true` significa que el argumento se puede omitir.
 export const EFFECTS = {
   lowpass: { args: [{ min: 20, max: 20000 }] },
   highpass: { args: [{ min: 20, max: 20000 }] },
@@ -46,7 +46,7 @@ export const EFFECTS = {
   sidechain: { args: [{ instrument: true }] },
 };
 
-// Effects allowed on the master bus.
+// Efectos permitidos en el bus master.
 export const MASTER_EFFECTS = ['lowpass', 'highpass', 'reverb', 'delay', 'distort', 'vol'];
 
 export const GLOBALS = {
@@ -70,6 +70,6 @@ export const LIMITS = {
   maxVoiceStyleChars: 120,
 };
 
-// Spoken voice clips ("voice" command): generated with the OpenAI speech API.
+// Clips de voz hablados (comando "voice"): se generan con la API de voz de OpenAI.
 export const VOICES = ['female', 'male'];
 export const VOICE_EFFECTS = ['lowpass', 'highpass', 'bandpass', 'delay', 'reverb', 'distort', 'bitcrush', 'chorus', 'phaser', 'vol', 'pan'];

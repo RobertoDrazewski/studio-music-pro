@@ -22,7 +22,7 @@ export function authRoutes({ db, config, auth, quota }) {
   router.post('/login', loginLimiter, async (req, res) => {
     const { email, password } = validate(loginSchema, req.body);
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    // Always run bcrypt so timing does not reveal whether the email exists.
+    // Corro bcrypt siempre para que el tiempo no revele si el email existe.
     const ok = await auth.verifyPassword(password, user ? user.password_hash : auth.dummyHash);
     if (!user || !ok || !user.active) throw new HttpError(401, 'Invalid email or password');
 
@@ -48,7 +48,7 @@ export function authRoutes({ db, config, auth, quota }) {
     });
   });
 
-  // Profile: display name and picture. The picture is a small image resized in the browser (data URL).
+  // Perfil: nombre visible y foto. La foto es una imagen chica achicada en el navegador (data URL).
   const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
   const profileSchema = z.object({
     name: z.string().trim().min(1, 'Enter a name').max(80).optional(),
@@ -74,7 +74,7 @@ export function authRoutes({ db, config, auth, quota }) {
     }
     if (currentPassword === newPassword) throw new HttpError(400, 'The new password must be different');
     const hash = await auth.hashPassword(newPassword);
-    // Bumping token_version signs out every other session.
+    // Subir token_version cierra todas las demás sesiones.
     db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, token_version = token_version + 1 WHERE id = ?').run(
       hash,
       req.user.id,

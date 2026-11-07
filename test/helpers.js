@@ -7,7 +7,7 @@ import { createApp } from '../server/app.js';
 
 export const ADMIN = { email: 'boss@example.com', password: 'a-very-long-admin-password' };
 
-// Fake OpenAI server: `state.replies` is a queue of strings (or functions returning {status, body}).
+// Servidor OpenAI falso: `state.replies` es una cola de textos (o funciones que devuelven {status, body}).
 export async function startFakeOpenAI() {
   const state = { audio: null, replies: [], requests: [], usage: { prompt_tokens: 1000, completion_tokens: 200 } };
   const server = http.createServer((req, res) => {
@@ -63,7 +63,7 @@ export async function startApp({ openaiUrl, config = {}, env = {} } = {}) {
   };
 }
 
-// Tiny HTTP client with a cookie jar.
+// Cliente HTTP mínimo con jarra de cookies.
 export function client(base) {
   let cookie = '';
   async function request(method, url, body, headers = {}) {
@@ -106,7 +106,7 @@ export async function loginAdmin(base) {
   return c;
 }
 
-// Creates a user as admin, changes the temporary password and returns a logged-in client.
+// Creo un usuario como admin, cambio la contraseña temporal y devuelvo un cliente con sesión iniciada.
 export async function createUser(base, admin, { email = 'user@example.com', name = 'User', ...rest } = {}) {
   const created = await admin.post('/api/admin/users', { email, name, plan: 'beta', ...rest });
   const c = client(base);

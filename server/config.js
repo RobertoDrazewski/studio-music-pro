@@ -22,7 +22,7 @@ function list(value) {
     .filter(Boolean);
 }
 
-// Builds the runtime configuration. `overrides` is used by the tests.
+// Armo la configuración de ejecución. `overrides` lo usan los tests.
 export function loadConfig(overrides = {}) {
   const env = { ...process.env, ...(overrides.env ?? {}) };
   const isProd = env.NODE_ENV === 'production';
@@ -32,7 +32,7 @@ export function loadConfig(overrides = {}) {
     if (isProd) {
       throw new Error('JWT_SECRET is required in production (at least 32 characters). Generate one with: openssl rand -hex 32');
     }
-    // Development only: an ephemeral secret invalidates sessions on every restart.
+    // Solo en desarrollo: un secreto efímero invalida las sesiones en cada reinicio.
     jwtSecret = crypto.randomBytes(32).toString('hex');
   }
 
@@ -42,7 +42,7 @@ export function loadConfig(overrides = {}) {
     root: ROOT,
     isProd,
     port: int(env.PORT, 3000),
-    // Number of reverse proxies in front of the app (Coolify's proxy + Cloudflare tunnel = 2).
+    // Cantidad de proxies inversos delante de la app (proxy de Coolify + túnel de Cloudflare = 2).
     trustProxy: int(env.TRUST_PROXY, 1),
     publicUrl: env.PUBLIC_URL || '',
     allowedOrigins: list(env.ALLOWED_ORIGINS),
@@ -56,7 +56,7 @@ export function loadConfig(overrides = {}) {
     jobsDir: path.join(dataDir, 'jobs'),
     tmpDir: path.join(dataDir, 'tmp'),
 
-    // 'trial' = invited users only, no billing. 'subscription' is reserved for later.
+    // 'trial' = solo usuarios invitados, sin cobro. 'subscription' queda reservado para después.
     appMode: env.APP_MODE === 'subscription' ? 'subscription' : 'trial',
 
     auth: {
@@ -81,24 +81,24 @@ export function loadConfig(overrides = {}) {
     openai: {
       apiKey: env.OPENAI_API_KEY || '',
       baseUrl: (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-      // Verify the model name against your OpenAI account before going live.
+      // Verificá el nombre del modelo en tu cuenta de OpenAI antes de salir en vivo.
       model: env.OPENAI_MODEL || 'gpt-4o-mini',
-      // Reasoning models count their hidden thinking inside this limit, so keep it generous.
+      // Los modelos de razonamiento cuentan su pensamiento oculto dentro de este límite, así que lo dejo generoso.
       maxOutputTokens: int(env.OPENAI_MAX_OUTPUT_TOKENS, 4000),
-      // Optional: low | medium | high. Only for reasoning models; leave empty for the rest.
+      // Opcional: low | medium | high. Solo para modelos de razonamiento; vacío para el resto.
       reasoningEffort: env.OPENAI_REASONING_EFFORT || '',
       timeoutMs: int(env.OPENAI_TIMEOUT_MS, 60_000),
-      // USD per 1M tokens, used only to estimate spend. Update when prices change.
+      // USD por 1M de tokens, solo para estimar el gasto. Actualizar cuando cambien los precios.
       priceInPerM: num(env.OPENAI_PRICE_IN_PER_M, 0.15),
       priceOutPerM: num(env.OPENAI_PRICE_OUT_PER_M, 0.6),
-      // Hard stop for the whole app, on top of the limit set in the OpenAI dashboard.
+      // Corte duro para toda la app, además del límite del panel de OpenAI.
       monthlyBudgetUsd: num(env.AI_MONTHLY_BUDGET_USD, 5),
-      // Text to speech for the "voice" command. Generated clips are cached on disk by content,
-      // so the same phrase is only paid once.
+      // Texto a voz para el comando "voice". Los clips generados se cachean en disco por contenido,
+      // así la misma frase se paga una sola vez.
       ttsModel: env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
       ttsVoiceFemale: env.OPENAI_TTS_VOICE_FEMALE || 'coral',
       ttsVoiceMale: env.OPENAI_TTS_VOICE_MALE || 'onyx',
-      // USD per 1000 characters, used only to estimate spend (approximate: check openai.com/api/pricing).
+      // USD por 1000 caracteres, solo para estimar el gasto (aproximado: ver openai.com/api/pricing).
       ttsPricePer1kChars: num(env.OPENAI_TTS_PRICE_PER_1K_CHARS, 0.02),
     },
 
@@ -106,7 +106,7 @@ export function loadConfig(overrides = {}) {
       ffmpeg: env.FFMPEG_PATH || 'ffmpeg',
       ffprobe: env.FFPROBE_PATH || 'ffprobe',
       concurrency: Math.max(1, int(env.MASTER_CONCURRENCY, 1)),
-      // Cloudflare rejects request bodies over 100 MB, so each file is uploaded in its own request.
+      // Cloudflare rechaza cuerpos de más de 100 MB, por eso cada archivo se sube en su propio pedido.
       maxUploadMb: int(env.MAX_UPLOAD_MB, 95),
       maxAudioSeconds: int(env.MAX_AUDIO_SECONDS, 480),
       maxStems: 16,

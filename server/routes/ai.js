@@ -13,7 +13,7 @@ import { STYLE_BY_ID, enforceStyleTempo, setBpmInCode } from '../../shared/lang/
 export function aiRoutes({ db, config, auth, quota, openai }) {
   const router = Router();
 
-  // The language reference is public inside the app (the editor uses it for help and autocomplete).
+  // La referencia del lenguaje es pública dentro de la app (el editor la usa para ayuda y autocompletado).
   router.get('/guide', auth.requireAuth, (_req, res) => {
     res.json({ guide: LANGUAGE_GUIDE });
   });
@@ -35,13 +35,13 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
 
   const schema = z.object({
     prompt: z.string().trim().min(3, 'Describe the song you want').max(config.limits.maxPromptChars),
-    // When present, the AI edits this song instead of creating a new one.
+    // Si viene, la IA edita esta canción en vez de crear una nueva.
     code: z.string().max(config.limits.maxCodeBytes).optional(),
-    // A style id from shared/lang/styles.js, or "auto" to detect it from the prompt.
+    // Un id de estilo de shared/lang/styles.js, o "auto" para detectarlo desde el pedido.
     style: z.string().max(40).optional(),
   });
 
-  const inFlight = new Set(); // one generation at a time per user
+  const inFlight = new Set(); // una generación a la vez por usuario
 
   router.post('/generate', limiter, async (req, res) => {
     const { prompt, code, style: styleId } = validate(schema, req.body);
@@ -71,7 +71,7 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
       let result = extractCode(attempt.text);
       let check = parse(result);
 
-      // One automatic repair attempt if the model used something that does not exist.
+      // Un intento automático de reparación si el modelo usó algo que no existe.
       if (!check.ok) {
         attempt = await openai.chat([
           { role: 'system', content: GENERATOR_SYSTEM_PROMPT },
@@ -91,7 +91,7 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
         });
       }
 
-      // Deterministic tempo guard: models like to drift to 120-130 bpm whatever the style is.
+      // Guarda determinista del tempo: a los modelos les gusta derivar a 120-130 bpm sin importar el estilo.
       let tempoAdjusted = false;
       if (built.explicitBpm && check.ast.bpm !== built.explicitBpm) {
         result = setBpmInCode(result, built.explicitBpm);
@@ -115,15 +115,15 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
       });
     } finally {
       inFlight.delete(user.id);
-      // Failed generations that still consumed tokens count toward spend, but not toward the user's quota.
+      // Las generaciones fallidas que igual gastaron tokens cuentan para el gasto, pero no para la cuota del usuario.
       if (promptTokens || completionTokens || ok) {
         quota.recordAiUsage({ userId: user.id, model: openai.model, promptTokens, completionTokens, ok });
       }
     }
   });
 
-  // ---- AI voices (text to speech) ---------------------------------------------------
-  // Clips are cached on disk by content hash: the same phrase is paid once and then served free to everyone.
+  // ---- Voces de IA (texto a voz) ---------------------------------------------------
+  // Los clips se cachean en disco por hash de contenido: la misma frase se paga una vez y después se sirve gratis a todos.
   const voiceLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 12,
@@ -137,7 +137,7 @@ export function aiRoutes({ db, config, auth, quota, openai }) {
     text: z.string().trim().min(1, 'Write the words to say').max(LIMITS.maxVoiceChars),
     voice: z.enum(VOICES).default('female'),
     style: z.string().trim().max(LIMITS.maxVoiceStyleChars).optional().default(''),
-    // true = only answer if the clip already exists (never spends anything).
+    // true = solo responde si el clip ya existe (nunca gasta nada).
     onlyCached: z.boolean().optional().default(false),
   });
 

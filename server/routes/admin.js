@@ -34,7 +34,7 @@ export function adminRoutes({ db, config, auth, quota }) {
     plan: z.string().trim().min(1).max(30).optional(),
   });
 
-  // Creates a user with a temporary password. The password is returned ONCE.
+  // Creo un usuario con contraseña temporal. La contraseña se devuelve UNA sola vez.
   router.post('/users', async (req, res) => {
     const body = validate(createSchema, req.body);
     if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(body.email)) {
@@ -99,7 +99,7 @@ export function adminRoutes({ db, config, auth, quota }) {
         values.push(typeof body[key] === 'boolean' ? Number(body[key]) : body[key]);
       }
     }
-    if (body.active === false) sets.push('token_version = token_version + 1'); // kicks out active sessions
+    if (body.active === false) sets.push('token_version = token_version + 1'); // saca a las sesiones activas
     if (sets.length) db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values, user.id);
     res.json({ user: withUsage(getUser.get(user.id)) });
   });

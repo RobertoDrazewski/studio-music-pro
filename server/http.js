@@ -8,7 +8,7 @@ export class HttpError extends Error {
   }
 }
 
-// Validates `data` against a zod schema or throws a 400 HttpError.
+// Valido `data` contra un esquema zod o lanzo un HttpError 400.
 export function validate(schema, data) {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -21,8 +21,8 @@ export function validate(schema, data) {
 
 export { z };
 
-// The demo plan ('trial') lets a person try the studio: one song, no downloads.
-// Paid plans (and the super admin) have no such limits. Payments come later.
+// El plan demo ('trial') deja probar el estudio: una canción y sin descargas.
+// Los planes pagos (y el super admin) no tienen esos límites. Los pagos vienen después.
 export const isDemoUser = (u) => u.role !== 'superadmin' && u.plan === 'trial';
 export const DEMO_MAX_PROJECTS = 1;
 

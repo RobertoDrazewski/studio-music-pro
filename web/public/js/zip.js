@@ -1,5 +1,5 @@
-// Minimal ZIP writer (no compression, "store" method). Audio is already dense, so storing is fine,
-// and it keeps the code tiny. Entries are Blobs, so the browser can page big files out of memory.
+// Escritor de ZIP mínimo (sin compresión, método "store"). El audio ya viene denso, así que guardar sin comprimir alcanza
+// y deja el código chico. Las entradas son Blobs, así el navegador puede paginar archivos grandes fuera de memoria.
 const TABLE = (() => {
   const t = new Uint32Array(256);
   for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
@@ -13,7 +13,7 @@ export function crc32(bytes, crc = 0) {
 }
 
 async function blobCrc(blob) {
-  // Read in chunks to avoid holding two copies of a big file.
+  // Leo por partes para no tener dos copias de un archivo grande en memoria.
   let crc = 0;
   const CH = 4 * 1024 * 1024;
   for (let o = 0; o < blob.size; o += CH) crc = crc32(new Uint8Array(await blob.slice(o, o + CH).arrayBuffer()), crc);
@@ -25,7 +25,7 @@ function dosTime(d = new Date()) {
   return { time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date: ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() };
 }
 
-// files: [{ name, data: Blob | string | Uint8Array }]. Returns a Blob (application/zip).
+// files: [{ name, data: Blob | string | Uint8Array }]. Devuelvo un Blob (application/zip).
 export async function makeZip(files) {
   const parts = [];
   const central = [];

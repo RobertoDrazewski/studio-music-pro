@@ -9,7 +9,7 @@ export function generatePassword(length = 16) {
   let out = '';
   const bytes = crypto.randomBytes(length * 2);
   for (let i = 0; out.length < length && i < bytes.length; i++) {
-    // Rejection sampling avoids modulo bias.
+    // El muestreo por rechazo evita el sesgo del módulo.
     const limit = 256 - (256 % PASSWORD_ALPHABET.length);
     if (bytes[i] < limit) out += PASSWORD_ALPHABET[bytes[i] % PASSWORD_ALPHABET.length];
   }
@@ -18,7 +18,7 @@ export function generatePassword(length = 16) {
 
 export function createAuth({ db, config }) {
   const { jwtSecret, cookieName, sessionDays, bcryptCost } = config.auth;
-  // Used to keep login timing similar when the email does not exist.
+  // Sirve para que el tiempo de login sea parecido cuando el email no existe.
   const dummyHash = bcrypt.hashSync('not-a-real-password', bcryptCost);
 
   const hashPassword = (plain) => bcrypt.hash(plain, bcryptCost);
@@ -47,7 +47,7 @@ export function createAuth({ db, config }) {
 
   const getUserById = db.prepare('SELECT * FROM users WHERE id = ?');
 
-  // Attaches req.user when the session is valid. Never throws.
+  // Pone req.user cuando la sesión es válida. Nunca tira error.
   function loadUser(req, _res, next) {
     const token = req.cookies?.[cookieName];
     if (!token) return next();
@@ -56,7 +56,7 @@ export function createAuth({ db, config }) {
       const user = getUserById.get(payload.sub);
       if (user && user.active && user.token_version === payload.tv) req.user = user;
     } catch {
-      // Invalid or expired token: treated as anonymous.
+      // Token inválido o vencido: se trata como anónimo.
     }
     next();
   }
@@ -66,7 +66,7 @@ export function createAuth({ db, config }) {
     next();
   }
 
-  // Blocks everything except the password-change flow until the user sets their own password.
+  // Bloquea todo salvo el cambio de contraseña hasta que el usuario ponga la suya.
   function requirePasswordSet(req, _res, next) {
     if (req.user.must_change_password) {
       throw new HttpError(403, 'You must change your temporary password first', { code: 'PASSWORD_CHANGE_REQUIRED' });
@@ -79,7 +79,7 @@ export function createAuth({ db, config }) {
     next();
   }
 
-  // Creates the first super admin from the environment if none exists yet.
+  // Crea el primer super admin desde el entorno si todavía no existe ninguno.
   async function seedSuperadmin() {
     const { superadminEmail, superadminPassword, minPasswordLength } = config.auth;
     const existing = db.prepare("SELECT id FROM users WHERE role = 'superadmin' LIMIT 1").get();

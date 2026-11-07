@@ -15,7 +15,7 @@ test('setGlobal replaces or inserts bpm and swing', () => {
   ok(setGlobal(DEMO_SONG, 'bpm', 90));
   const bare = 'kick "x . . ."';
   assert.equal(setGlobal(bare, 'bpm', 100), 'bpm 100\nkick "x . . ."');
-  // inserted after a leading comment block
+  // se inserta después del bloque de comentarios inicial
   assert.equal(setGlobal('// hi\nkick "x ."', 'swing', 0.2), '// hi\nswing 0.2\nkick "x ."');
   assert.doesNotMatch(removeGlobal(DEMO_SONG, 'swing'), /swing/);
 });

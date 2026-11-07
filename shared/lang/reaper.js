@@ -1,7 +1,7 @@
-// Builds a Reaper project file (.rpp) that points to the exported WAV files.
-// Pure text generation (no browser or Node APIs), so it is shared and unit tested.
-// Layout: one track per stem, all items start at 0, instrument tracks grouped in folders, and a muted
-// "MIX reference" track with the full mix.
+// Armo un archivo de proyecto de Reaper (.rpp) que apunta a los WAV exportados.
+// Es generación de texto pura (sin APIs de navegador ni de Node), así que se comparte y se prueba con tests.
+// Estructura: una pista por stem, todos los ítems empiezan en 0, las pistas de instrumentos agrupadas en carpetas y una
+// pista "MIX reference" en mute con la mezcla completa.
 
 const q = (s) => `"${String(s).replace(/["\r\n]/g, ' ')}"`;
 const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0');
@@ -21,11 +21,11 @@ function trackBlock({ name, file, seconds, muted = false, folder = 0, closes = 0
   return lines.join('\n');
 }
 
-// tracks: [{ name, file, group }] in the order they should appear. mixFile: path of the full mix (optional).
+// tracks: [{ name, file, group }] en el orden en que deben aparecer. mixFile: ruta de la mezcla completa (opcional).
 export function buildReaperProject({ bpm = 120, seconds = 0, tracks = [], mixFile = null, sampleRate = 44100 }) {
   const out = ['<REAPER_PROJECT 0.1 "6.0/pulse-studio" 0', `  TEMPO ${num(bpm)} 4 4`, `  SAMPLERATE ${sampleRate} 0 0`];
   if (mixFile) out.push(trackBlock({ name: 'MIX (reference, muted)', file: mixFile, seconds, muted: true }));
-  // Group consecutive tracks into folders when a group has more than one track.
+  // Agrupo pistas consecutivas en carpetas cuando un grupo tiene más de una pista.
   const groups = [];
   for (const t of tracks) {
     const last = groups.at(-1);

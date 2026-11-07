@@ -1,10 +1,10 @@
-// Library of electronic music styles. Used in three places:
-//  - the AI generator (style brief + reference song are added to the prompt),
-//  - the "Load template" button (free, no AI needed),
-//  - the tempo guard (a generated song never leaves the tempo range of its style).
+// Biblioteca de estilos de música electrónica. Se usa en tres lugares:
+//  - el generador de IA (se agrega al prompt la descripción del estilo y una canción de referencia),
+//  - el botón "Load template" (gratis, sin IA),
+//  - la guarda de tempo (una canción generada nunca sale del rango de tempo de su estilo).
 //
-// Every `example` is a complete, valid Pulse song and is checked by the test suite.
-// Patterns are 16 steps per bar: steps 1, 5, 9, 13 are the beats; 3, 7, 11, 15 are the off-beats.
+// Cada `example` es una canción Pulse completa y válida, y la revisa la suite de tests.
+// Los patrones son de 16 pasos por compás: los pasos 1, 5, 9, 13 son los tiempos; 3, 7, 11, 15 son los contratiempos.
 
 export const STYLES = [
   {
@@ -684,8 +684,8 @@ const normalize = (s) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Finds the style a free-text request is about. Longer aliases win ("deep house" over "house",
-// "dub techno" over "dub" and "techno", "reggae dub" over "dub").
+// Busco el estilo del que habla un pedido en texto libre. Ganan los alias más largos ("deep house" sobre "house",
+// "dub techno" sobre "dub" y "techno", "reggae dub" sobre "dub").
 export function detectStyle(text) {
   const t = ` ${normalize(text ?? '')} `;
   let best = null;
@@ -706,14 +706,14 @@ export function styleList() {
   return STYLES.map((s) => ({ id: s.id, name: s.name, bpm: s.bpm }));
 }
 
-// Replaces the first `bpm` line (or adds one at the top).
+// Reemplazo la primera línea `bpm` (o agrego una arriba de todo).
 export function setBpmInCode(code, bpm) {
   const line = `bpm ${Math.round(bpm)}`;
   if (/^\s*bpm\s+\S+/m.test(code)) return code.replace(/^(\s*)bpm\s+\S+.*$/m, `$1${line}`);
   return `${line}\n${code}`;
 }
 
-// Tempo guard: if the song's tempo is outside the style's range, move it to the style default.
+// Guarda de tempo: si el tempo de la canción está fuera del rango del estilo, lo llevo al valor por defecto del estilo.
 export function enforceStyleTempo(code, style, currentBpm) {
   if (!style) return { code, changed: false };
   const [min, max, def] = style.bpm;
@@ -721,7 +721,7 @@ export function enforceStyleTempo(code, style, currentBpm) {
   return { code: setBpmInCode(code, def), changed: true };
 }
 
-// What the generator is told about a style.
+// Lo que se le cuenta al generador sobre un estilo.
 export function styleBriefText(style) {
   const [min, max, def] = style.bpm;
   return `STYLE: ${style.name}

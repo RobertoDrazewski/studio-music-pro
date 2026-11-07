@@ -3,8 +3,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { HttpError } from '../http.js';
 
-// Every preset is an ffmpeg filter chain applied BEFORE loudness normalization.
-// All values are conservative: the goal is a clean, competitive result, not a rescue.
+// Cada preset es una cadena de filtros de ffmpeg que se aplica ANTES de normalizar el volumen.
+// Todos los valores son conservadores: el objetivo es un resultado limpio y competitivo, no un rescate.
 export const PRESETS = {
   clean: {
     description: 'Transparent: gentle glue compression',
@@ -75,7 +75,7 @@ function run(bin, args, { timeoutMs, signal } = {}) {
   });
 }
 
-// Reads the RIFF/WAVE signature. Used on every uploaded file before ffmpeg touches it.
+// Leo la firma RIFF/WAVE. Se usa en cada archivo subido antes de que ffmpeg lo toque.
 export function looksLikeWav(filePath) {
   const fd = fs.openSync(filePath, 'r');
   try {
@@ -122,8 +122,8 @@ export function createMastering({ config }) {
     return parseLoudnormJson(stderr);
   }
 
-  // Two-pass mastering: analyse the processed signal, then normalize with measured values.
-  // Returns metrics for the README and for the API.
+  // Mastering en dos pasadas: analizo la señal procesada y después normalizo con los valores medidos.
+  // Devuelvo métricas para el README y para la API.
   async function master({ input, outWav, outMp3, preset = 'clean', targetLufs }) {
     const def = PRESETS[preset];
     if (!def) throw new HttpError(400, `Unknown preset "${preset}"`);
@@ -140,7 +140,7 @@ export function createMastering({ config }) {
       `loudnorm=I=${target}:TP=${TRUE_PEAK}:LRA=11` +
       `:measured_I=${first.input_i}:measured_TP=${first.input_tp}:measured_LRA=${first.input_lra}` +
       `:measured_thresh=${first.input_thresh}:offset=${first.target_offset}:linear=true`;
-    // alimiter is a last safety net just below the true-peak ceiling; aresample undoes loudnorm's internal upsampling.
+    // alimiter es una última red de seguridad justo debajo del techo de true-peak; aresample deshace el sobremuestreo interno de loudnorm.
     const af = [...def.chain, loudnorm, 'alimiter=limit=0.89:level=0', 'aresample=44100'].join(',');
 
     await run(
@@ -152,7 +152,7 @@ export function createMastering({ config }) {
       timeoutMs: jobTimeoutMs,
     });
 
-    // Measure the real result so the report is honest.
+    // Mido el resultado real para que el informe sea honesto.
     const final = await measure(outWav, []);
     return {
       preset,
@@ -164,7 +164,7 @@ export function createMastering({ config }) {
     };
   }
 
-  // Plain MP3 export (no mastering): for quick sharing of the raw mix.
+  // Exportación a MP3 simple (sin mastering): para compartir rápido la mezcla cruda.
   async function toMp3({ input, outMp3 }) {
     const info = await probe(input);
     await run(ffmpeg, ['-hide_banner', '-nostats', '-y', '-i', input, '-c:a', 'libmp3lame', '-b:a', '320k', outMp3], {

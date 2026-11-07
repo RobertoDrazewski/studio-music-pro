@@ -1,11 +1,11 @@
-// User menu (avatar + dropdown) and the profile dialog: photo, name, password, language.
+// Menú de usuario (avatar + desplegable) y diálogo de perfil: foto, nombre, contraseña e idioma.
 import { api } from './api.js';
 import { h, modal, toast } from './dom.js';
 import { icon } from './icons.js';
 import { avatarEl, langSwitch } from './components.js';
 import { session, navigate, link } from './main.js';
 
-// Resizes a picture to a small square in the browser, so the server only stores a few KB.
+// Achico una foto a un cuadrado chico en el navegador, así el servidor guarda solo unos KB.
 async function toAvatar(file) {
   if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error('Choose a PNG, JPEG or WebP image');
   const bmp = await createImageBitmap(file);
@@ -90,7 +90,7 @@ export function openProfile({ onChange = () => {} } = {}) {
   });
 }
 
-// Avatar button with a dropdown: profile, back to the website, admin, sign out.
+// Botón de avatar con desplegable: perfil, volver al sitio, admin y cerrar sesión.
 export function createUserMenu({ beforeLeave = async () => {} } = {}) {
   const user = () => session.user;
   const wrap = h('div', { class: 'umenu' });

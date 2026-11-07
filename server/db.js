@@ -3,7 +3,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 const MIGRATIONS = [
-  // 1: initial schema
+  // 1: esquema inicial
   `
   CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,12 +58,12 @@ const MIGRATIONS = [
   );
   CREATE INDEX idx_jobs_user ON jobs(user_id, created_at DESC);
   `,
-  // 2: AI voices (text to speech). Voice generations are logged in ai_usage with kind = 'voice'.
+  // 2: voces de IA (texto a voz). Las generaciones de voz se registran en ai_usage con kind = 'voice'.
   `
   ALTER TABLE users ADD COLUMN voice_monthly_quota INTEGER NOT NULL DEFAULT 10;
   ALTER TABLE ai_usage ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat';
   `,
-  // 3: profile picture (small data URL, resized in the browser).
+  // 3: foto de perfil (data URL chica, achicada en el navegador).
   `
   ALTER TABLE users ADD COLUMN avatar TEXT;
   `,

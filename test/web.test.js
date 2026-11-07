@@ -50,5 +50,5 @@ test('web: share page has escaped social preview tags', async () => {
   assert.match(html, /og:image" content="https:\/\/studio\.example\.com\//);
   const missing = await get('/s/not-a-real-slug');
   assert.equal(missing.status, 404);
-  assert.match(await missing.text(), /<div id="app">/); // the SPA renders its own "not found" page
+  assert.match(await missing.text(), /<div id="app">/); // la SPA dibuja su propia página de "no encontrado"
 });

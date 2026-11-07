@@ -1,5 +1,5 @@
-// Guided prompt builder: turns a set of clicks (plus optional free text) into one precise prompt.
-// Pure function, used by the browser (live preview) and covered by tests.
+// Constructor guiado de prompts: convierte un conjunto de clics (más texto libre opcional) en un prompt preciso.
+// Es una función pura, la usa el navegador (vista previa en vivo) y la cubren los tests.
 
 import { INSTRUMENTS, LIMITS, VOICES } from './spec.js';
 
@@ -37,7 +37,7 @@ export const FX_CHOICES = [
 export const KEY_ROOTS = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
 export const KEY_SCALES = ['minor', 'major'];
 
-// Instruments grouped the way a producer thinks about them (used by the builder and the mixer).
+// Instrumentos agrupados como los piensa un productor (los usan el constructor y el mezclador).
 export const INSTRUMENT_GROUPS = [
   { id: 'percussion', label: 'Percussion', items: ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc'] },
   { id: 'bass', label: 'Bass', items: ['bass', 'sub'] },
@@ -46,7 +46,7 @@ export const INSTRUMENT_GROUPS = [
 ];
 export const groupOf = (instrument) => (instrument === 'voice' ? 'voice' : INSTRUMENT_GROUPS.find((g) => g.items.includes(instrument))?.id ?? 'other');
 
-// One-click changes for "Edit current". They are phrased as instructions about the existing song.
+// Cambios de un clic para "Edit current". Están redactados como instrucciones sobre la canción existente.
 export const EDIT_GROUPS = [
   { id: 'tempo', label: 'Tempo & feel', icon: '⏱' },
   { id: 'tone', label: 'Tone', icon: '🎛' },
@@ -94,7 +94,7 @@ export const QUICK_EDITS = [
 ];
 
 
-// Ready-made starting points: they fill the clicks, pick the style and write a description you can still edit.
+// Puntos de partida listos: completan los clics, eligen el estilo y escriben una descripción que se puede seguir editando.
 export const PRESETS = [
   { id: 'reggae-dub', label: 'Reggae dub', style: 'dub', text: 'Slow one drop with deep bass and delay on the skank', moods: ['warm', 'hypnotic'], energy: 'chill', structure: 'track', instruments: ['kick', 'snare', 'hat', 'perc', 'bass', 'pad'], bass: 'deep', fx: ['dub-echo', 'big-reverb'], feel: 'swing' },
   { id: 'dark-techno', label: 'Dark techno', style: 'techno', text: 'Hypnotic rumbling bass, relentless kick, sparse stabs', moods: ['dark', 'hypnotic'], energy: 'high', structure: 'track', instruments: ['kick', 'clap', 'hat', 'openhat', 'perc', 'bass'], bass: 'rolling', fx: ['sidechain', 'filter-sweeps'] },
@@ -125,7 +125,7 @@ export function emptySelection() {
 const pick = (list, id) => list.find((x) => x.id === id);
 const oneLine = (s) => String(s ?? '').replace(/["\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-// Returns the final prompt. `styleName` is shown to the AI as the first line.
+// Devuelvo el prompt final. `styleName` se le muestra a la IA como primera línea.
 export function composePrompt(sel, freeText = '', { styleName = '', mode = 'new' } = {}) {
   const parts = [];
   const editing = mode === 'edit';
@@ -137,7 +137,7 @@ export function composePrompt(sel, freeText = '', { styleName = '', mode = 'new'
   const energy = pick(ENERGIES, sel.energy);
   if (energy) parts.push(`Energy: ${energy.text}.`);
   const structure = pick(STRUCTURES, sel.structure);
-  if (structure && !editing) parts.push(`Structure: ${structure.text}.`); // in edit mode use the quick edits (add build-up, add drop...)
+  if (structure && !editing) parts.push(`Structure: ${structure.text}.`); // en modo edición uso los cambios rápidos (agregar build-up, agregar drop...)
   const inst = (sel.instruments ?? []).filter((i) => INSTRUMENTS.includes(i));
   if (inst.length) parts.push(editing ? `Make sure these instruments are present and audible: ${inst.join(', ')}.` : `Use these instruments: ${inst.join(', ')}.`);
   const bass = pick(BASS_TYPES, sel.bass);

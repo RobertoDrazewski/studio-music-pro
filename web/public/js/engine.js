@@ -1,12 +1,12 @@
-// Pulse audio engine: turns a parsed song (AST) into sound with Tone.js.
+// Motor de audio de Pulse: convierte la canción ya parseada (AST) en sonido con Tone.js.
 //
-// One scheduler drives everything: once per bar it asks plan.js what happens in
-// that bar and schedules the notes. Because the song is read again on every
-// bar, edits entered while playing take effect on the next bar without a stop.
-// The same code runs live (real-time) and offline (rendering to a file).
+// Un solo planificador lo mueve todo: una vez por compás le pregunto a plan.js qué pasa
+// en ese compás y programo las notas. Como releo la canción en cada compás, lo que edito
+// mientras suena entra en el compás siguiente sin cortar nada.
+// El mismo código corre en vivo (tiempo real) y fuera de línea (render a archivo).
 //
-// All sounds are synthesized here. No samples are used, so everything a user
-// exports belongs to them.
+// Todos los sonidos se sintetizan acá, no uso samples; así lo que el usuario exporta es suyo.
+//
 
 import {
   barSeconds,
@@ -24,27 +24,27 @@ import { DRUMS } from '/shared/lang/spec.js';
 const Tone = window.Tone;
 
 const WAVE_TO_TONE = { sine: 'sine', saw: 'sawtooth', square: 'square', tri: 'triangle' };
-// Headroom: the sum of several loud synths can exceed full scale, so the master starts lower.
+// Margen de volumen: varios sintes fuertes juntos pueden pasarse de la escala, así que el master arranca más bajo.
 const MASTER_BASE = 0.7;
 
 // ---------------------------------------------------------------------------
-// Voices. Each voice has `out` (a Tone node) and trigger(time, event, secondsLong).
+// Voces. Cada voz tiene `out` (un nodo de Tone) y trigger(tiempo, evento, duración en segundos).
 // ---------------------------------------------------------------------------
 
 function noteName(n) {
   return n[0].toUpperCase() + n.slice(1);
 }
 
-// Decoded AI voice clips, keyed by voiceKey(). Filled by voices.js; read by every SongCore (live and offline).
+// Clips de voz de la IA ya decodificados, por voiceKey(). Los llena voices.js y los leen todos los SongCore (vivo y offline).
 export const voiceBuffers = new Map();
 
 function makeVoice(instrument, wave) {
   const tonal = WAVE_TO_TONE[wave];
 
-  // Spoken clips ----------------------------------------------------------
+  // Voces habladas ---------------------------------------------------------
   if (instrument === 'voice') {
     const out = new Tone.Gain(1);
-    // Native context captured now: during an offline render it is the offline one.
+    // Tomo ahora el contexto nativo: en un render offline este es el offline.
     const raw = Tone.getContext().rawContext;
     const live = new Set();
     return {
@@ -63,7 +63,7 @@ function makeVoice(instrument, wave) {
           try {
             s.stop();
           } catch {
-            // already stopped
+            // ya estaba detenido
           }
         }
         live.clear();
@@ -72,7 +72,7 @@ function makeVoice(instrument, wave) {
     };
   }
 
-  // Drums ---------------------------------------------------------------
+  // Batería ---------------------------------------------------------------
   if (instrument === 'kick') {
     const synth = new Tone.MembraneSynth({
       pitchDecay: 0.04,
@@ -105,7 +105,7 @@ function makeVoice(instrument, wave) {
       out,
       trigger(time, ev, _dur, vel) {
         if (isClap) {
-          // Three quick bursts make the "hand clap" attack.
+          // Tres ráfagas rápidas hacen el ataque del aplauso.
           noise.triggerAttackRelease(0.02, time, vel * 0.7);
           noise.triggerAttackRelease(0.02, time + 0.011, vel * 0.8);
           noise.triggerAttackRelease(0.14, time + 0.024, vel);
@@ -159,9 +159,9 @@ function makeVoice(instrument, wave) {
     };
   }
 
-  // Melodic ---------------------------------------------------------------
+  // Melódicos ---------------------------------------------------------------
   if (wave === 'noise') {
-    // Pitchless texture: a filtered noise burst per note.
+    // Textura sin tono: una ráfaga de ruido filtrado por nota.
     const noise = new Tone.NoiseSynth({
       noise: { type: 'pink' },
       envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.3 },
@@ -178,7 +178,7 @@ function makeVoice(instrument, wave) {
   const settings = {
     bass: { env: { attack: 0.005, decay: 0.2, sustain: 0.55, release: 0.12 }, lp: 1600, gain: 0.9, poly: 1, detune: [0] },
     sub: { env: { attack: 0.01, decay: 0.3, sustain: 0.9, release: 0.2 }, lp: 400, gain: 1, poly: 1, detune: [0] },
-    // Mids and leads start with a gentle low-pass so saw and square waves never get harsh; the song can open them up.
+    // Mids y leads arrancan con un pasabajos suave para que saw y square no suenen ásperos; la canción puede abrirlo.
     pad: { env: { attack: 0.35, decay: 0.4, sustain: 0.7, release: 1.2 }, lp: 3200, gain: 0.3, poly: 12, detune: [-7, 7] },
     strings: { env: { attack: 0.7, decay: 0.5, sustain: 0.8, release: 1.6 }, lp: 2600, gain: 0.26, poly: 12, detune: [-10, 0, 10] },
     organ: { env: { attack: 0.01, decay: 0.05, sustain: 0.9, release: 0.07 }, lp: 2400, gain: 0.34, poly: 8, detune: [0] },
@@ -193,9 +193,9 @@ function makeVoice(instrument, wave) {
   const ratios = settings.ratios ?? [1];
   const amps = settings.amps ?? [1];
 
-  // Notes are plain native oscillators with a gain envelope. This is far cheaper than Tone's
-  // PolySynth, which matters when a whole song is rendered offline.
-  const raw = Tone.getContext().rawContext; // captured now: see the note in SongCore
+  // Las notas son osciladores nativos con envolvente de ganancia. Es mucho más barato que el PolySynth
+  // de Tone, y eso importa cuando renderizo una canción entera offline.
+  const raw = Tone.getContext().rawContext; // lo capturo ahora: mirá la nota en SongCore
   const type = tonal ?? 'sawtooth';
   const sum = new Tone.Gain(1);
   const tone = new Tone.Filter(settings.lp, 'lowpass');
@@ -248,11 +248,11 @@ function makeVoice(instrument, wave) {
       const notes = ev.notes.map(noteName);
       if (!notes.length) return;
       if (instrument === 'arp' && notes.length > 1) {
-        // Spread the chord's notes across the step: that is what an arpeggiator does.
+        // Reparto las notas del acorde a lo largo del paso: eso es lo que hace un arpegiador.
         const slot = dur / notes.length;
         notes.forEach((n, i) => note(n, time + i * slot, Math.max(0.03, slot * 0.9), vel));
       } else if (settings.poly === 1) {
-        note(notes[0], time, dur, vel); // monophonic instruments play the first note of a chord
+        note(notes[0], time, dur, vel); // los instrumentos monofónicos tocan la primera nota del acorde
       } else {
         notes.forEach((n) => note(n, time, dur, vel));
       }
@@ -276,8 +276,8 @@ function makeVoice(instrument, wave) {
 }
 
 // ---------------------------------------------------------------------------
-// Effects. Each returns { node, set(effectArgs, time) } where set() can change
-// the amount at a given moment (used by "every N bars").
+// Efectos. Cada uno devuelve { node, set(args, tiempo) } y set() cambia la cantidad
+// en un momento dado (lo uso para "every N bars").
 // ---------------------------------------------------------------------------
 
 function makeCrusher(bits) {
@@ -288,15 +288,15 @@ function makeCrusher(bits) {
 
 const NEUTRAL = { lowpass: 20000, highpass: 20, bandpass: 1000, delay: 0, reverb: 0, distort: 0, chorus: 0, phaser: 0 };
 
-// Reverb = convolution with a synthetic, decaying noise impulse. It runs natively in the
-// browser (fast, also in offline renders) and needs no samples. The noise is seeded, so the
-// reverb sounds identical in the live preview and in every render.
+// Reverb = convolución con un impulso de ruido sintético que decae. Corre nativo en el
+// navegador (rápido, también offline) y no necesita samples. El ruido tiene semilla, así que
+// la reverb suena igual en la vista previa y en cada render.
 function makeReverb(wet) {
   const ctx = Tone.getContext();
   const rate = ctx.sampleRate;
   const seconds = 1.5;
   const length = Math.floor(rate * seconds);
-  // One channel keeps the convolution cheap (it matters a lot in offline renders on slow computers).
+  // Un solo canal para que la convolución sea barata (importa mucho en renders offline en compus lentas).
   const impulse = ctx.createBuffer(1, length, rate);
   for (let c = 0; c < 1; c++) {
     const data = impulse.getChannelData(c);
@@ -306,7 +306,7 @@ function makeReverb(wet) {
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
       const noise = (seed >>> 0) / 4294967296 * 2 - 1;
       const decay = Math.pow(1 - i / length, 3.2);
-      lp += (noise - lp) * 0.55; // gentle high-frequency damping
+      lp += (noise - lp) * 0.55; // amortiguación suave de agudos
       data[i] = lp * decay;
     }
   }
@@ -372,7 +372,7 @@ function makeEffect(name, value) {
 }
 
 // ---------------------------------------------------------------------------
-// A track chain: voice -> effects -> pan -> volume -> sidechain duck -> bus
+// Cadena de una pista: voz -> efectos -> pan -> volumen -> sidechain -> bus
 // ---------------------------------------------------------------------------
 
 class Chain {
@@ -380,7 +380,7 @@ class Chain {
     this.instrument = track.instrument;
     this.voice = makeVoice(track.instrument, track.wave);
     this.nodes = [];
-    this.effects = new Map(); // name -> { node, apply, neutral, base }
+    this.effects = new Map(); // nombre -> { node, apply, neutral, base }
     this.lastUsedBar = 0;
 
     const base = new Map();
@@ -390,7 +390,7 @@ class Chain {
       if (rule.instrument === track.instrument) for (const e of rule.effects) latent.add(e.name);
     }
 
-    // Order matters: tone shaping first, then space.
+    // El orden importa: primero el tono, después el espacio.
     const order = ['highpass', 'bandpass', 'lowpass', 'bitcrush', 'distort', 'chorus', 'phaser', 'delay', 'reverb'];
     let prev = this.voice.out;
     for (const name of order) {
@@ -415,7 +415,7 @@ class Chain {
     this.volume.gain.value = this.baseVol;
   }
 
-  // Sets this bar's parameters: the baseline, replaced by active "every" rules.
+  // Fijo los parámetros de este compás: la base, reemplazada por las reglas "every" activas.
   applyBar(time, overrides) {
     let vol = this.baseVol;
     let pan = this.basePan;
@@ -440,10 +440,10 @@ class Chain {
 }
 
 // ---------------------------------------------------------------------------
-// Song core: shared by live playback and offline rendering.
+// Núcleo de la canción: lo comparten la reproducción en vivo y el render offline.
 // ---------------------------------------------------------------------------
 
-// A voice line behaves like a track with no steps (so it shares the effect chain code).
+// Una línea de voz se comporta como una pista sin pasos (así comparte el código de efectos).
 function voiceTrack(v) {
   return { instrument: 'voice', wave: null, steps: [], effects: v.effects ?? [] };
 }
@@ -451,19 +451,19 @@ function voiceTrack(v) {
 class SongCore {
   constructor({ live }) {
     this.live = live;
-    // Captured now: during an offline render Tone's "current context" is only the offline one while the
-    // render callback runs, so every node (and the transport) must be created up front, never lazily.
+    // Lo capturo ahora: en un render offline el "contexto actual" de Tone es solo el offline mientras corre
+    // el callback, por eso todos los nodos (y el transporte) se crean de entrada, nunca perezosamente.
     this.transport = Tone.getTransport();
     this.ast = null;
     this.pendingAst = null;
     this.overrides = { mute: new Set(), solo: new Set() };
-    this.only = null; // Set of instruments to render (stems), or null for everything
+    this.only = null; // Set de instrumentos a renderizar (stems), o null para todo
 
-    this.chains = new Map(); // signature -> Chain
+    this.chains = new Map(); // firma -> Chain
     this.activity = new Map(); // instrumento -> último golpe {t, vel}
     this.barCount = 0;
 
-    // Master bus: user's master effects -> limiter -> out
+    // Bus master: efectos del usuario -> limitador -> salida
     this.bus = new Tone.Gain(1);
     this.masterFx = [];
     this.userVolume = 1;
@@ -494,7 +494,7 @@ class SongCore {
     const sig = JSON.stringify(effects);
     if (sig === this.masterSignature) return;
     this.masterSignature = sig;
-    // Rebuild: bus -> fx... -> masterGain
+    // Reconstruyo: bus -> efectos... -> ganancia master
     this.bus.disconnect();
     for (const fx of this.masterFx) (fx.dispose ? fx.dispose() : fx.node.dispose());
     this.masterFx = [];
@@ -527,7 +527,7 @@ class SongCore {
     return chain;
   }
 
-  // Called once per bar at audio time `time`.
+  // Se llama una vez por compás en el tiempo de audio `time`.
   scheduleBar(time) {
     if (this.pendingAst) {
       this.ast = this.pendingAst;
@@ -549,7 +549,7 @@ class SongCore {
     const audible = audibleSet(ast, this.overrides);
     const every = activeEvery(section, barInSection);
 
-    // First pass: hits of every track, so sidechain sources are known before targets are scheduled.
+    // Primera pasada: los golpes de cada pista, para conocer las fuentes de sidechain antes de programar los destinos.
     const planned = section.tracks.map((track, idx) => ({
       track,
       idx,
@@ -560,7 +560,7 @@ class SongCore {
 
     const hits = [];
     for (const { track, idx, events } of planned) {
-      if (this.only && !this.only.has(track.instrument)) continue; // stem render: other tracks are skipped entirely
+      if (this.only && !this.only.has(track.instrument)) continue; // render de stem: las demás pistas se saltan por completo
       const chain = this.chainFor(track, section, barIndex);
       chain.applyBar(time, every.get(track.instrument));
       const isAudible = audible(track.instrument);
@@ -588,8 +588,8 @@ class SongCore {
         }
       }
     }
-    // Two lines of the same instrument share one voice: fire in time order and skip exact duplicates,
-    // because the synths cannot start twice at the same instant.
+    // Dos líneas del mismo instrumento comparten voz: las disparo en orden de tiempo y salto los duplicados exactos,
+    // porque los sintes no pueden arrancar dos veces en el mismo instante.
     hits.sort((a, b) => a.t - b.t);
     const lastHit = new Map();
     for (const k of hits) {
@@ -601,20 +601,20 @@ class SongCore {
       this.activity.set(k.inst, { t: k.t, vel: k.vel });
     }
 
-    // Spoken clips start at the beginning of their bar.
+    // Los clips hablados arrancan al comienzo de su compás.
     if (!this.only || this.only.has('voice')) {
       for (const v of section.voices ?? []) {
         if (v.bar !== barInSection + 1 || !audible('voice')) continue;
         const buffer = voiceBuffers.get(voiceKey(v));
-        if (!buffer) continue; // not generated yet: stays silent
+        if (!buffer) continue; // todavía no se generó: queda en silencio
         const chain = this.chainFor(voiceTrack(v), section, barIndex);
         chain.applyBar(time, every.get('voice'));
         chain.voice.trigger(time, { buffer });
       }
     }
 
-    // Free chains that have not been used for a while (their reverb tails have finished by then).
-    // Only live playback does this: an offline render creates everything up front.
+    // Libero las cadenas que llevan un rato sin usarse (para entonces sus colas de reverb ya terminaron).
+    // Solo lo hace la reproducción en vivo: el render offline crea todo de entrada.
     for (const [sig, chain] of this.live ? this.chains : []) {
       if (barIndex - chain.lastUsedBar > 6) {
         chain.dispose();
@@ -624,7 +624,7 @@ class SongCore {
     return { sectionIndex, barInSection, section: section.name, songBar: where.songBar, time };
   }
 
-  // Builds every chain the song needs (used before an offline render).
+  // Construyo todas las cadenas que necesita la canción (antes de un render offline).
   prepare(ast) {
     for (const section of ast.sections) {
       for (const track of section.tracks) {
@@ -659,7 +659,7 @@ class SongCore {
 }
 
 // ---------------------------------------------------------------------------
-// Live engine (what the editor uses)
+// Motor en vivo (el que usa el editor)
 // ---------------------------------------------------------------------------
 
 export class PulseEngine {
@@ -688,7 +688,7 @@ export class PulseEngine {
     return this.core?.wave ?? null;
   }
 
-  // Must be called from a click or key press (browsers block audio otherwise).
+  // Hay que llamarlo desde un clic o una tecla (si no, el navegador bloquea el audio).
   async play(ast) {
     await Tone.start();
     if (this.playing) {
@@ -720,7 +720,7 @@ export class PulseEngine {
     this.emit({ type: 'state', playing: true });
   }
 
-  // Applies a new valid song at the start of the next bar.
+  // Aplico una canción nueva y válida al comienzo del compás siguiente.
   update(ast) {
     if (this.core) this.core.pendingAst = ast;
   }
@@ -746,7 +746,7 @@ export class PulseEngine {
     transport.cancel(0);
     this.eventId = null;
     this.playing = false;
-    // Dispose after the release tails have faded out.
+    // Libero los nodos cuando las colas de release ya se apagaron.
     const old = this.core;
     this.core = null;
     setTimeout(() => old?.dispose(), 2500);
@@ -755,7 +755,7 @@ export class PulseEngine {
 }
 
 // ---------------------------------------------------------------------------
-// Offline rendering (for downloads and mastering)
+// Render offline (para descargas y mastering)
 // ---------------------------------------------------------------------------
 
 export const TAIL_SECONDS = 2.5;
@@ -764,7 +764,7 @@ export function songDuration(ast) {
   return totalBars(ast) * barSeconds(ast.bpm) + TAIL_SECONDS;
 }
 
-// Renders the whole arrangement once. `only` renders a single instrument (a stem).
+// Renderizo el arreglo completo una vez. `only` renderiza un solo instrumento (un stem).
 export async function renderSong(ast, { only = null, sampleRate = 44100 } = {}) {
   const bars = totalBars(ast);
   if (!bars) throw new Error('The song has no instruments yet');
@@ -783,14 +783,14 @@ export async function renderSong(ast, { only = null, sampleRate = 44100 } = {}) 
   return buffer.get();
 }
 
-const PEAK_CEILING = 0.89; // about -1 dBFS
+const PEAK_CEILING = 0.89; // aprox. -1 dBFS
 
-// Renders the mix and (optionally) one file per instrument. Everything is scaled by the same factor
-// so nothing clips and the stems still add up to the mix.
+// Renderizo la mezcla y, opcionalmente, un archivo por instrumento. Todo se escala con el mismo factor
+// para que nada sature y los stems sigan sumando igual que la mezcla.
 export async function renderProject(ast, { stems = true, groups = 'instrument', groupOf = () => 'other', onProgress = () => {} } = {}) {
   const audible = audibleSet(ast);
   const insts = stems ? songInstruments(ast).filter(audible) : [];
-  // What to render as separate files: each instrument, each group (percussion, bass...) or both.
+  // Qué renderizo como archivos separados: cada instrumento, cada grupo (percusión, bajos...) o ambos.
   const items = [];
   if (groups === 'instrument' || groups === 'both') for (const n of insts) items.push({ name: n, only: [n], kind: 'instrument', group: groupOf(n) });
   if (groups === 'group' || groups === 'both') {
@@ -824,7 +824,7 @@ export async function renderProject(ast, { stems = true, groups = 'instrument', 
 export { songInstruments };
 
 // ---------------------------------------------------------------------------
-// WAV encoding
+// Codificación WAV
 // ---------------------------------------------------------------------------
 
 export function encodeWav(audioBuffer, bits = 24) {
@@ -868,7 +868,7 @@ export function encodeWav(audioBuffer, bits = 24) {
   return new Blob([out], { type: 'audio/wav' });
 }
 
-// Peak and RMS of a rendered buffer (used to detect silent renders).
+// Pico y RMS de un buffer renderizado (sirve para detectar renders en silencio).
 export function bufferStats(audioBuffer) {
   let peak = 0;
   let sum = 0;

@@ -1,5 +1,5 @@
-// Code editor: a transparent <textarea> on top of a highlighted <pre>-like layer, plus a line gutter.
-// The textarea keeps native behavior (selection, undo, IME, mobile) and the layer only paints colors.
+// Editor de código: un <textarea> transparente sobre una capa resaltada, más una columna de números de línea.
+// El textarea conserva el comportamiento nativo (selección, deshacer, IME, móvil) y la capa solo pinta colores.
 import { h } from './dom.js';
 import { highlight } from './highlight.js';
 
@@ -60,7 +60,7 @@ export class Editor {
     this.paint();
   }
 
-  // Two-space indent with Tab, like a real editor.
+  // Sangría de dos espacios con Tab, como un editor de verdad.
   onKey(e) {
     if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.metaKey || this.input.readOnly) return;
     e.preventDefault();
@@ -87,8 +87,8 @@ export class Editor {
     this.gutter.style.transform = `translateY(${-this.input.scrollTop}px)`;
   }
 
-  // Types text into the editor like a person would. Resolves when done or when cancelled.
-  // `onLine(textSoFar)` runs after every completed line, so the music can follow the typing.
+  // Escribo texto en el editor como lo haría una persona. Termina al acabar o al cancelar.
+  // `onLine(textoHastaAhora)` corre después de cada línea completa, así la música sigue al tipeo.
   async typeIn(text, { onLine, cps = 38, signal } = {}) {
     this.input.readOnly = true;
     this.setValue('', { silent: true });

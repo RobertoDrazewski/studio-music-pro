@@ -53,8 +53,8 @@ export function projectRoutes({ db, config, auth }) {
     res.json({ project: toApi(owned(req)) });
   });
 
-  // Work in progress may contain errors, so the code is saved as is.
-  // The response includes the validation result so the editor can show it.
+  // El trabajo en curso puede tener errores, así que el código se guarda tal cual.
+  // La respuesta incluye el resultado de la validación para que el editor lo muestre.
   router.put('/:id', (req, res) => {
     const row = owned(req);
     const { title, code } = validate(bodySchema.partial(), req.body);
@@ -84,7 +84,7 @@ export function projectRoutes({ db, config, auth }) {
   return router;
 }
 
-// Public, read-only access to shared songs. No authentication.
+// Acceso público de solo lectura a las canciones compartidas. Sin autenticación.
 export function shareRoutes({ db }) {
   const router = Router();
   router.use(

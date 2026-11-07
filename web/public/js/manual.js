@@ -1,5 +1,5 @@
-// The full manual: learn Pulse by reading, copying and inserting working examples.
-// Content comes from shared/lang/spec.js and recipes.js, so it never drifts from what the parser accepts.
+// El manual completo: se aprende Pulse leyendo, copiando e insertando ejemplos que funcionan.
+// El contenido sale de shared/lang/spec.js y recipes.js, así nunca se aleja de lo que acepta el parser.
 
 import { h, modal, copyText, toast } from './dom.js';
 import { DRUMS, MELODIC, EFFECTS, DEFAULT_WAVE, WAVES, GLOBALS, LIMITS } from '/shared/lang/spec.js';
@@ -42,7 +42,7 @@ const FX = {
   sidechain: ['Ducks this line every time another instrument hits (the "pump").', 'sidechain kick'],
 };
 
-// Diatonic triads of a key, written as ready-to-use chords.
+// Tríadas diatónicas de una tonalidad, escritas como acordes listos para usar.
 const CHROMA = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
 const INTERVALS = { minor: [0, 2, 3, 5, 7, 8, 10], major: [0, 2, 4, 5, 7, 9, 11] };
 const NUMERALS = { minor: ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'], major: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'] };

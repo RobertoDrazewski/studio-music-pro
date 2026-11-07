@@ -1,6 +1,6 @@
-// Pure scheduling logic for Pulse songs. No audio, no browser APIs: the audio
-// engine asks "what happens in bar N?" and turns the answer into sound.
-// Keeping this separate makes the musical rules testable in Node.
+// Lógica pura de planificación de las canciones Pulse. Sin audio ni APIs del navegador: el motor
+// de audio pregunta "¿qué pasa en el compás N?" y convierte la respuesta en sonido.
+// Al tenerlo separado, las reglas musicales se pueden probar en Node.
 
 import { DRUMS } from './spec.js';
 
@@ -14,8 +14,8 @@ export function totalBars(ast) {
   return ast.sections.reduce((sum, s) => sum + s.bars, 0);
 }
 
-// Finds the section that plays at `barIndex` (0-based, counted from the start of the song).
-// Returns null when the song has ended (loop off) or has no sections.
+// Busco la sección que suena en `barIndex` (desde 0, contando desde el inicio de la canción).
+// Devuelvo null cuando la canción terminó (sin loop) o no tiene secciones.
 export function locate(ast, barIndex) {
   const total = totalBars(ast);
   if (!total) return null;
@@ -35,8 +35,8 @@ export function locate(ast, barIndex) {
   return null;
 }
 
-// Deterministic pseudo-random number in [0, 1) so that "x?" steps behave the
-// same in the live preview, the mix render and every stem render.
+// Número pseudoaleatorio determinista en [0, 1) para que los pasos "x?" se comporten igual
+// en la vista previa, en el render de la mezcla y en cada render de stem.
 export function chanceValue(a, b, c) {
   let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -44,15 +44,15 @@ export function chanceValue(a, b, c) {
   return (h >>> 0) / 4294967296;
 }
 
-// Which instruments are audible given the song's own mute/solo commands plus live overrides.
+// Qué instrumentos se oyen según los mute/solo de la propia canción más los cambios en vivo.
 export function audibleSet(ast, overrides = {}) {
   const solo = new Set([...(ast.solo ?? []), ...(overrides.solo ?? [])]);
   const mute = new Set([...(ast.mute ?? []), ...(overrides.mute ?? [])]);
   return (instrument) => (solo.size ? solo.has(instrument) : !mute.has(instrument));
 }
 
-// Events of one track inside one bar.
-// `position` is the fraction of the bar (0 to 1) where the step starts.
+// Eventos de una pista dentro de un compás.
+// `position` es la fracción del compás (de 0 a 1) donde empieza el paso.
 export function planTrack(track, trackIndex, songBar) {
   const n = track.steps.length;
   const isDrum = DRUMS.includes(track.instrument);
@@ -62,7 +62,7 @@ export function planTrack(track, trackIndex, songBar) {
     if (step.kind === 'rest' || step.kind === 'hold') continue;
     if (step.chance < 1 && chanceValue(trackIndex + 1, songBar + 1, i + 1) >= step.chance) continue;
 
-    // A trigger lasts until the next trigger or rest, extended by "_" holds that follow it.
+    // Un disparo dura hasta el siguiente disparo o silencio, alargado por los "_" que lo siguen.
     let length = 1;
     if (!isDrum) {
       while (i + length < n && track.steps[i + length].kind === 'hold') length++;
@@ -71,7 +71,7 @@ export function planTrack(track, trackIndex, songBar) {
       step: i,
       steps: n,
       position: i / n,
-      length: length / n, // fraction of the bar
+      length: length / n, // fracción del compás
       swingable: i % 2 === 1,
       kind: step.kind, // 'hit' | 'note'
       notes: step.notes ?? [],
@@ -81,8 +81,8 @@ export function planTrack(track, trackIndex, songBar) {
   return events;
 }
 
-// Per-instrument effect overrides active in this bar ("every N bars: ...").
-// Returns Map<instrument, Array<{name,args}>>.
+// Cambios de efectos por instrumento activos en este compás ("every N bars: ...").
+// Devuelvo Map<instrumento, Array<{name,args}>>.
 export function activeEvery(section, barInSection) {
   const out = new Map();
   for (const rule of section.every ?? []) {
@@ -93,18 +93,18 @@ export function activeEvery(section, barInSection) {
   return out;
 }
 
-// Stable identity of a track's sound design. Two tracks with the same signature can share one audio chain.
+// Identidad estable del diseño de sonido de una pista. Dos pistas con la misma firma pueden compartir una cadena de audio.
 export function trackSignature(track, section) {
   const everyFx = (section.every ?? []).filter((r) => r.instrument === track.instrument).flatMap((r) => r.effects.map((e) => e.name));
   return JSON.stringify([track.instrument, track.wave, track.effects, [...new Set(everyFx)].sort()]);
 }
 
-// Stable identity of a spoken clip (what is said, by whom, how). Same on the server (cache) and in the browser.
+// Identidad estable de un clip hablado (qué se dice, quién y cómo). Es la misma en el servidor (caché) y en el navegador.
 export function voiceKey(v) {
   return JSON.stringify([v.voice, v.style ?? '', v.text]);
 }
 
-// Every distinct clip of the song, in order.
+// Cada clip distinto de la canción, en orden.
 export function songVoices(ast) {
   const seen = new Map();
   for (const section of ast.sections) {
@@ -116,7 +116,7 @@ export function songVoices(ast) {
   return [...seen.values()];
 }
 
-// Names of the distinct instruments that appear anywhere in the song (used for stems).
+// Nombres de los instrumentos distintos que aparecen en la canción (sirve para los stems).
 export function songInstruments(ast) {
   const seen = [];
   for (const section of ast.sections) {
@@ -124,7 +124,7 @@ export function songInstruments(ast) {
       if (!seen.includes(track.instrument)) seen.push(track.instrument);
     }
   }
-  // Spoken clips count as one more "instrument" so they can be muted, soloed and exported as a stem.
+  // Los clips hablados cuentan como un "instrumento" más para poder silenciarlos, ponerlos en solo y exportarlos como stem.
   if (ast.sections.some((s) => (s.voices ?? []).length)) seen.push('voice');
   return seen;
 }

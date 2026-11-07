@@ -1,5 +1,5 @@
-// Microphone takes: recorded in the browser (any input device, including USB interfaces),
-// stored in this browser's IndexedDB. Nothing is uploaded.
+// Tomas del micrófono: se graban en el navegador (cualquier entrada, incluidas interfaces USB)
+// y se guardan en el IndexedDB de este navegador. No se sube nada.
 
 const DB_NAME = 'pulse-takes';
 const STORE = 'takes';
@@ -35,18 +35,18 @@ export const takes = {
 
 export const micSupported = () => !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder && window.indexedDB);
 
-// Lists audio inputs. Labels are only available after the user granted microphone permission.
+// Listo las entradas de audio. Los nombres solo aparecen después de que el usuario da permiso al micrófono.
 export async function listInputs() {
   const all = await navigator.mediaDevices.enumerateDevices();
   return all.filter((d) => d.kind === 'audioinput').map((d, i) => ({ id: d.deviceId, label: d.label || `Input ${i + 1}` }));
 }
 
-// Starts recording from `deviceId` ('' = default). Returns { stop(): Promise<Blob>, level(): 0..1 }.
+// Empiezo a grabar desde `deviceId` ('' = por defecto). Devuelvo { stop(): Promise<Blob>, level(): 0..1 }.
 export async function startRecording(deviceId) {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-      // Raw signal: processing meant for calls damages music.
+      // Señal cruda: el procesamiento pensado para llamadas arruina la música.
       echoCancellation: false, noiseSuppression: false, autoGainControl: false,
     },
   });

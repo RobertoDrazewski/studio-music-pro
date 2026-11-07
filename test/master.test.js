@@ -20,7 +20,7 @@ before(async () => {
   workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-audio-'));
   toneWav = path.join(workDir, 'tone.wav');
   silentWav = path.join(workDir, 'silent.wav');
-  // A quiet stereo-ish test signal: two sines, low level, so mastering has real work to do.
+  // Una señal de prueba tranquila, casi estéreo: dos senoidales a bajo nivel, para que el mastering tenga trabajo real.
   makeWav(toneWav, 'sine=frequency=110:duration=6,volume=0.05');
   makeWav(silentWav, 'anullsrc=r=44100:cl=mono,atrim=duration=3');
 });
@@ -85,7 +85,7 @@ test('master: produces a ZIP with master, mix, stems, code and report; loudness 
   const readme = execFileSync('unzip', ['-p', zipPath, 'README.txt']).toString();
   assert.match(readme, /Output loudness/);
 
-  // temporary uploads are gone
+  // las subidas temporales ya no están
   assert.deepEqual(fs.readdirSync(app.config.tmpDir), []);
 });
 
@@ -174,17 +174,17 @@ test('master: upload session flow (one request per file) produces the same ZIP',
   assert.equal(created.status, 201);
   const { uploadId } = created.data;
 
-  // Wrong content type and fake WAV are rejected.
+  // Un tipo de contenido incorrecto y un WAV falso se rechazan.
   assert.equal((await u.client.raw('PUT', `/api/master/uploads/${uploadId}/mix`, wav, { 'Content-Type': 'text/plain' })).status, 400);
   assert.equal((await u.client.raw('PUT', `/api/master/uploads/${uploadId}/mix`, new Uint8Array(100), wavHeader)).status, 400);
 
-  // Starting without a mix fails but keeps the session.
+  // Empezar sin mezcla falla pero conserva la sesión.
   assert.equal((await u.client.post('/api/master', { title: 'x', uploadId })).status, 400);
 
   assert.equal((await u.client.raw('PUT', `/api/master/uploads/${uploadId}/mix`, wav, wavHeader)).status, 200);
   assert.equal((await u.client.raw('PUT', `/api/master/uploads/${uploadId}/stems/Kick%20Drum`, wav, wavHeader)).status, 200);
 
-  // Another user cannot use the session.
+  // Otro usuario no puede usar la sesión.
   const other = await createUser(app.base, admin, { email: 'sessions2@example.com' });
   assert.equal((await other.client.post('/api/master', { title: 'x', uploadId })).status, 404);
 
@@ -193,7 +193,7 @@ test('master: upload session flow (one request per file) produces the same ZIP',
   const job = await waitForJob(u.client, started.data.job.id);
   assert.equal(job.status, 'done', job.error);
 
-  // The session is consumed.
+  // La sesión se consume.
   assert.equal((await u.client.post('/api/master', { title: 'x', uploadId })).status, 404);
   const dl = await u.client.get(`/api/master/jobs/${job.id}/download`);
   assert.equal(dl.status, 200);

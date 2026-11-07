@@ -1,7 +1,7 @@
-// Interface language: English (source) and Latin American Spanish.
-// The app is written in English. This module translates what is on screen by exact text match
-// (text nodes and a few attributes), so every view, modal and toast is covered without wrapping each string.
-// Text that is not in the dictionary stays in English, and user content (song names, code) never matches.
+// Idioma de la interfaz: inglés (fuente) y español latinoamericano.
+// La app está escrita en inglés. Este módulo traduce lo que hay en pantalla por coincidencia exacta de texto
+// (nodos de texto y algunos atributos), así cubro vistas, modales y avisos sin envolver cada texto.
+// Lo que no está en el diccionario queda en inglés, y el contenido del usuario (nombres, código) nunca coincide.
 const KEY = 'pulse-lang';
 export const LANGS = [['en', 'English'], ['es', 'Español']];
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
@@ -9,9 +9,9 @@ const SKIP = 'textarea, script, style, [data-notranslate], .ed-layer, .ed-gutter
 
 let lang = 'en';
 let dict = null; // { exact: {en: es}, patterns: [[RegExp, fn]] }
-const originals = new WeakMap(); // text node -> English text
-const attrOriginals = new WeakMap(); // element -> { attr: English text }
-const written = new WeakMap(); // text node -> last text we wrote (to ignore our own mutations)
+const originals = new WeakMap(); // nodo de texto -> texto en inglés
+const attrOriginals = new WeakMap(); // elemento -> { atributo: texto en inglés }
+const written = new WeakMap(); // nodo de texto -> último texto que escribí (para ignorar mis propios cambios)
 let observer = null;
 
 function detect() {
@@ -24,7 +24,7 @@ function detect() {
 
 export const getLang = () => lang;
 
-// Translate one English string. Returns the same string when there is no translation.
+// Traduzco un texto en inglés. Devuelvo el mismo texto si no hay traducción.
 export function t(en, vars) {
   let out = en;
   if (lang === 'es' && dict) out = lookup(en);
@@ -58,7 +58,7 @@ const skipped = (node) => {
 function translateText(node) {
   if (skipped(node)) return;
   const current = node.nodeValue;
-  if (written.get(node) === current && originals.has(node)) return; // our own write
+  if (written.get(node) === current && originals.has(node)) return; // es una escritura mía
   originals.set(node, current);
   const next = lang === 'es' && dict ? lookup(current) : current;
   if (next !== current) { written.set(node, next); node.nodeValue = next; }
@@ -91,7 +91,7 @@ function walk(root) {
   }
 }
 
-// Re-applies the current language to everything already on screen (used when the language changes).
+// Vuelvo a aplicar el idioma actual a todo lo que ya está en pantalla (cuando cambia el idioma).
 function retranslateAll() {
   const it = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
   let n = it.nextNode();

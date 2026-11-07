@@ -1,4 +1,4 @@
-// Export flow: render the song in the browser, upload the audio, wait for the server job, download the result.
+// Flujo de exportación: renderizo la canción en el navegador, subo el audio, espero el trabajo del servidor y descargo el resultado.
 import { api } from './api.js';
 import { renderProject, renderSong, encodeWav, songDuration } from './engine.js';
 import { download } from './dom.js';
@@ -7,7 +7,7 @@ import { makeZip } from './zip.js';
 import { groupOf } from '/shared/lang/promptbuilder.js';
 import { buildReaperProject, buildReadme } from '/shared/lang/reaper.js';
 
-const UPLOAD_BUDGET_BYTES = 90 * 1024 * 1024; // each file must stay under the server limit (95 MB)
+const UPLOAD_BUDGET_BYTES = 90 * 1024 * 1024; // cada archivo debe quedar por debajo del límite del servidor (95 MB)
 
 export const safeName = (title) =>
   (title || 'song')
@@ -18,7 +18,7 @@ export const safeName = (title) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'song';
 
-// 24-bit when it fits in one upload, 16-bit for very long songs.
+// 24 bits si entra en una sola subida, 16 bits para canciones muy largas.
 function pickBits(buffer) {
   const bytes24 = buffer.length * buffer.numberOfChannels * 3;
   return bytes24 <= UPLOAD_BUDGET_BYTES ? 24 : 16;
@@ -31,7 +31,7 @@ export function checkLength(ast) {
   }
 }
 
-// Plain WAV straight from the browser, no server involved.
+// WAV simple directo desde el navegador, sin servidor.
 export async function exportWav(ast, title, onStatus = () => {}) {
   checkLength(ast);
   onStatus('Rendering the mix…');
@@ -51,7 +51,7 @@ async function poll(jobId, onStatus, signal) {
   throw new Error('The export took too long');
 }
 
-// kind: 'master' (ZIP with mastered files, mix and stems) or 'mp3' (plain MP3 of the mix).
+// kind: 'master' (ZIP con archivos masterizados, mezcla y stems) o 'mp3' (MP3 simple de la mezcla).
 export async function exportViaServer({ ast, code, title, kind = 'master', preset = 'clean', targetLufs, onStatus = () => {}, onProgress = () => {}, signal }) {
   checkLength(ast);
   onStatus('Rendering in your browser…');
@@ -78,7 +78,7 @@ export async function exportViaServer({ ast, code, title, kind = 'master', prese
   return { job: done, url: `/api/master/jobs/${done.id}/download`, filename: `${safeName(title)}-${kind === 'mp3' ? 'mix.mp3' : 'master.zip'}` };
 }
 
-// One stem (an instrument or a whole group) as a WAV, rendered in the browser. No server, no quota.
+// Un stem (un instrumento o un grupo entero) como WAV, renderizado en el navegador. Sin servidor y sin cuota.
 export async function exportStem(ast, title, names, label, onStatus = () => {}) {
   checkLength(ast);
   onStatus(`Rendering ${label}…`);
@@ -86,7 +86,7 @@ export async function exportStem(ast, title, names, label, onStatus = () => {}) 
   download(encodeWav(buffer, 24), `${safeName(title)}-${safeName(label)}.wav`);
 }
 
-// Studio pack: ZIP with the mix, the stems, a Reaper project and a short README. Everything stays in the browser.
+// Pack de estudio: ZIP con la mezcla, los stems, un proyecto de Reaper y un README corto. Todo queda en el navegador.
 // mode: 'instrument' | 'group' | 'both'.
 export async function exportStudioPack({ ast, code, title, mode = 'instrument', bits = 24, rpp = true, onProgress = () => {}, onStatus = () => {} }) {
   checkLength(ast);
@@ -119,7 +119,7 @@ export async function exportStudioPack({ ast, code, title, mode = 'instrument', 
   return { files: files.length, bytes: zip.size };
 }
 
-// Rough size of a pack in MB, to warn before rendering very long songs.
+// Tamaño aproximado de un pack en MB, para avisar antes de renderizar canciones muy largas.
 export function estimatePackMb(ast, mode, bits) {
   const insts = new Set();
   for (const s of ast.sections) { for (const t of s.tracks) insts.add(t.instrument); if (s.voices?.length) insts.add('voice'); }

@@ -16,8 +16,8 @@ import { projectRoutes, shareRoutes } from './routes/projects.js';
 import { aiRoutes } from './routes/ai.js';
 import { masterRoutes } from './routes/master.js';
 
-// Builds the whole application. Everything is created from `config`, so tests
-// can run an isolated instance (in-memory DB, fake OpenAI) without globals.
+// Armo toda la aplicación. Todo se crea a partir de `config`, así los tests
+// pueden correr una instancia aislada (BD en memoria, OpenAI falso) sin globales.
 export async function createApp(config, { fetchImpl } = {}) {
   fs.mkdirSync(config.jobsDir, { recursive: true });
   fs.mkdirSync(config.tmpDir, { recursive: true });
@@ -34,7 +34,7 @@ export async function createApp(config, { fetchImpl } = {}) {
 
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', config.trustProxy); // reverse proxies in front (Coolify proxy, Cloudflare tunnel)
+  app.set('trust proxy', config.trustProxy); // proxies inversos delante (proxy de Coolify, túnel de Cloudflare)
 
   app.use(
     helmet({
@@ -42,7 +42,7 @@ export async function createApp(config, { fetchImpl } = {}) {
         useDefaults: false,
         directives: {
           defaultSrc: ["'self'"],
-          // blob: is needed by the audio engine (AudioWorklet / offline rendering).
+          // blob: lo necesita el motor de audio (AudioWorklet / render offline).
           scriptSrc: ["'self'", 'blob:'],
           workerSrc: ["'self'", 'blob:'],
           styleSrc: ["'self'", "'unsafe-inline'"],
@@ -62,11 +62,11 @@ export async function createApp(config, { fetchImpl } = {}) {
   app.use(cookieParser());
   app.use(express.json({ limit: '200kb' }));
 
-  // CSRF defense in depth (cookies are already SameSite=Lax): unsafe requests must come from our own origin.
+  // Defensa extra contra CSRF (las cookies ya son SameSite=Lax): los pedidos inseguros deben venir de nuestro propio origen.
   app.use('/api', (req, _res, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     const origin = req.headers.origin;
-    if (!origin) return next(); // non-browser clients (curl, tests)
+    if (!origin) return next(); // clientes que no son navegador (curl, tests)
     let host;
     try {
       host = new URL(origin).host;
@@ -95,9 +95,9 @@ export async function createApp(config, { fetchImpl } = {}) {
 
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Not found')));
 
-  // ---- Front end (plain ES modules, no build step) --------------------------
-  // Code files are always revalidated (ETag), so a deploy shows up at once even behind Cloudflare's cache;
-  // images and fonts can be cached for an hour.
+  // ---- Front end (módulos ES simples, sin paso de build) --------------------------
+  // Los archivos de código se revalidan siempre (ETag), así un deploy se ve al instante incluso detrás del caché de Cloudflare;
+  // las imágenes y fuentes se pueden cachear una hora.
   const staticOpts = {
     index: false,
     etag: true,
@@ -106,7 +106,7 @@ export async function createApp(config, { fetchImpl } = {}) {
       res.setHeader('Cache-Control', code || !config.isProd ? 'no-cache' : 'public, max-age=3600');
     },
   };
-  // The browser reuses the same language parser as the server, and the audio engine library.
+  // El navegador reutiliza el mismo parser del lenguaje que el servidor, y la librería del motor de audio.
   app.use('/shared', express.static(config.sharedDir, staticOpts));
   app.get('/vendor/tone.js', (_req, res, next) => {
     res.set('Cache-Control', config.isProd ? 'public, max-age=86400' : 'no-cache');
@@ -116,12 +116,12 @@ export async function createApp(config, { fetchImpl } = {}) {
   const indexFile = path.join(config.webDir, 'index.html');
   if (fs.existsSync(indexFile)) {
     const cachedIndex = fs.readFileSync(indexFile, 'utf8');
-    // In development the file is re-read on every request so edits show up on refresh.
+    // En desarrollo releo el archivo en cada pedido, así los cambios se ven al refrescar.
     const getIndex = () => (config.isProd ? cachedIndex : fs.readFileSync(indexFile, 'utf8'));
     const esc = (s) =>
       String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const withMeta = (req, title, description, type = 'music.song') => {
-      // Behind the tunnel the app sees plain http, so social previews are always built with https in production.
+      // Detrás del túnel la app ve http plano, por eso las vistas previas sociales siempre se arman con https en producción.
       const base = (config.publicUrl || `${config.isProd ? 'https' : req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
       const meta = [
         `<title>${esc(title)}</title>`,
@@ -157,7 +157,7 @@ export async function createApp(config, { fetchImpl } = {}) {
       res.type('html').send(withMeta(req, `${row.title} · ${config.appName}`, `A song by ${row.author}, written as code and played in the browser. · Una canción de ${row.author}, escrita como código y reproducida en el navegador.`));
     });
 
-    // The service worker must never be served from a stale cache, or app updates would not arrive.
+    // El service worker nunca debe servirse desde un caché viejo, o las actualizaciones no llegarían.
     app.get('/sw.js', (_req, res) => {
       res.set('Cache-Control', 'no-cache');
       res.type('application/javascript').sendFile(path.join(config.webDir, 'sw.js'));

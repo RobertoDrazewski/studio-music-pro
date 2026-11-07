@@ -44,7 +44,7 @@ export function mount(root) {
   const loggedIn = !!session.user;
   const cta = (cls = 'btn primary') => (loggedIn ? link('/studio', { class: cls }, 'Open studio') : link('/login', { class: cls }, 'Sign in'));
 
-  // ---------- header ----------
+  // ---------- encabezado ----------
   const tabBtns = [];
   const tabs = h('nav', { class: 'lp-tabs', 'aria-label': 'Sections' }, TABS.map(([id, ic, label]) => {
     const b = h('button', { type: 'button', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 16 }), h('span', {}, label));
@@ -59,7 +59,7 @@ export function mount(root) {
   const beta = h('div', { class: 'lp-beta' }, h('span', { class: 'beta-chip' }, 'Beta'),
     h('span', {}, 'Public beta. We are still improving Pulse Studio, so some things may change.'));
 
-  // ---------- demo panel ----------
+  // ---------- panel de demo ----------
   const editor = new Editor({ value: '// Press play. The song writes itself.\n// Then change anything: edits land on the next bar.\n', onChange: () => player.sync() });
   const player = new Player(editor);
   const scope = createScope(player);
@@ -88,7 +88,7 @@ export function mount(root) {
     skipBtn.hidden = false;
     status.textContent = 'Typing…';
     try {
-      await window.Tone.start(); // needs the click gesture
+      await window.Tone.start(); // necesita el gesto del clic
       await editor.typeIn(DEMO_SONG, {
         signal: mine.signal,
         onLine: async (text) => {
@@ -133,13 +133,13 @@ export function mount(root) {
       h('ul', { class: 'chips' }, chip('code', 'Live coding'), chip('sparkles', 'AI drafts'), chip('layers', 'Tracks + Reaper'))),
     consoleEl));
 
-  // ---------- features ----------
+  // ---------- funciones ----------
   const featuresPanel = h('section', { class: 'lp-sec', id: 'features' }, h('div', { class: 'lp-inner' },
     h('header', { class: 'lp-head' }, h('h2', {}, 'From first idea to finished track'), h('p', {}, 'A song is a short text file you can read, copy and share. There is no timeline to drag around.')),
     h('div', { class: 'flist' }, FEATURES.map(([ic, title, text]) => h('article', { class: 'fitem' },
       h('span', { class: 'ficon' }, icon(ic, { size: 22 })), h('div', {}, h('h3', {}, title), h('p', {}, text)))))));
 
-  // ---------- sounds ----------
+  // ---------- sonidos ----------
   const pill = (n, label) => h('span', { class: 'pill' }, n === 'mic'
     ? h('span', { class: 'pill-ic' }, icon('mic', { size: 20 }))
     : h('img', { src: `/img/instruments/${n}.png`, alt: '', loading: 'lazy', width: 36, height: 36 }), h('span', label ? {} : { 'data-notranslate': '' }, label ?? n));
@@ -149,7 +149,7 @@ export function mount(root) {
       h('header', {}, h('span', { class: 'ficon small' }, icon(ic, { size: 18 })), h('div', {}, h('h3', {}, name), h('p', {}, blurb))),
       h('div', { class: 'pills' }, items.flatMap((n) => (n === 'voice' ? [pill('voice', 'AI voice'), pill('mic', 'Your mic')] : [pill(n)]))))))));
 
-  // ---------- plans panel ----------
+  // ---------- panel de planes ----------
   let yearly = false;
   const grid = h('div', { class: 'pgrid' });
   const billing = h('div', { class: 'billing', role: 'group', 'aria-label': 'Billing period' });
@@ -173,7 +173,7 @@ export function mount(root) {
   const panels = [demoPanel, featuresPanel, soundsPanel, plansPanel];
   const stage = h('main', { class: 'lp-stage' }, panels);
 
-  // ---------- bottom navigation (phones) ----------
+  // ---------- navegación inferior (celulares) ----------
   const bottom = h('nav', { class: 'lp-bottom', 'aria-label': 'Sections' }, TABS.map(([id, ic, text]) =>
     h('button', { type: 'button', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 20 }), h('span', {}, text))));
 

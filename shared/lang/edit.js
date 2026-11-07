@@ -1,8 +1,8 @@
-// Text-level edits of Pulse code. The visual controls (tempo, mixer sliders, step grid, transpose)
-// use these functions, so every click ends up as a readable change in the code. That is how a
-// beginner learns the language: move a slider, watch which line changes.
+// Ediciones de texto del código Pulse. Los controles visuales (tempo, faders del mixer, grilla de pasos, transposición)
+// usan estas funciones, así cada clic termina como un cambio legible en el código. Así aprende el lenguaje
+// un principiante: mueve un fader y ve qué línea cambia.
 //
-// All functions are pure: they take the source text and return the new source text.
+// Todas las funciones son puras: reciben el texto fuente y devuelven el texto nuevo.
 
 import { WAVES } from './spec.js';
 
@@ -39,7 +39,7 @@ function lines(code) {
   return code.replace(/\r\n?/g, '\n').split('\n');
 }
 
-// Calls fn(lineIndex, parsed) for each track line of `instrument` (optionally only in one section).
+// Llamo a fn(índiceDeLínea, parseada) por cada línea de pista de `instrument` (opcionalmente solo en una sección).
 function eachTrack(arr, instrument, section, fn) {
   let current = null;
   arr.forEach((text, i) => {
@@ -63,12 +63,12 @@ function mutateTracks(code, instrument, section, change) {
   return arr.join('\n');
 }
 
-// ---- global settings ------------------------------------------------------------------
+// ---- ajustes globales ------------------------------------------------------------------
 export function setGlobal(code, name, value) {
   const line = `${name} ${fmt(value)}`;
   const re = new RegExp(`^(\\s*)${name}\\s+\\S+.*$`, 'm');
   if (re.test(code)) return code.replace(re, `$1${line}`);
-  // Insert after the leading comment block, before everything else.
+  // Inserto después del bloque de comentarios del comienzo y antes de todo lo demás.
   const arr = lines(code);
   let at = 0;
   while (at < arr.length && /^\s*(\/\/.*)?$/.test(arr[at]) && arr[at].trim() !== '') at++;
@@ -80,8 +80,8 @@ export function removeGlobal(code, name) {
   return code.replace(new RegExp(`^\\s*${name}\\s+\\S+.*\\n?`, 'm'), '');
 }
 
-// ---- effects and wave ------------------------------------------------------------------
-// value === null removes the effect.
+// ---- efectos y onda ------------------------------------------------------------------
+// value === null quita el efecto.
 export function setTrackEffect(code, instrument, effect, value, { section = null } = {}) {
   return mutateTracks(code, instrument, section, (p) => {
     const tokens = p.tail.trim() ? p.tail.trim().split(/\s+/) : [];
@@ -106,14 +106,14 @@ export function setTrackWave(code, instrument, wave, { section = null } = {}) {
   });
 }
 
-// Raw step tokens of the track on a 1-based line ("x", ".", "c3*2", "[a2,c3,e3]"...), or null.
+// Pasos crudos de la pista en una línea (desde 1) ("x", ".", "c3*2", "[a2,c3,e3]"...), o null.
 export function getSteps(code, lineNo) {
   const m = TRACK_RE.exec(lines(code)[lineNo - 1] ?? '');
   return m ? splitPattern(m[4]) : null;
 }
 
-// ---- patterns ----------------------------------------------------------------------------
-// Replaces one step of the track on a given 1-based line. `token` is "x", ".", "_", "c3", "[c3,e3,g3]"...
+// ---- patrones ----------------------------------------------------------------------------
+// Reemplazo un paso de la pista en la línea dada (desde 1). `token` es "x", ".", "_", "c3", "[c3,e3,g3]"...
 export function setStep(code, lineNo, stepIndex, token) {
   const arr = lines(code);
   const m = TRACK_RE.exec(arr[lineNo - 1] ?? '');
@@ -125,7 +125,7 @@ export function setStep(code, lineNo, stepIndex, token) {
   return arr.join('\n');
 }
 
-// Resizes a pattern to 4, 8, 16 or 32 steps, repeating or truncating it.
+// Cambio el largo de un patrón a 4, 8, 16 o 32 pasos, repitiendo o recortando.
 export function resizePattern(code, lineNo, count) {
   const arr = lines(code);
   const m = TRACK_RE.exec(arr[lineNo - 1] ?? '');
@@ -137,13 +137,13 @@ export function resizePattern(code, lineNo, count) {
   return arr.join('\n');
 }
 
-// ---- transposing ---------------------------------------------------------------------------
+// ---- transposición ---------------------------------------------------------------------------
 export function transposeNote(note, semitones) {
   const m = NOTE_RE.exec(note);
   if (!m) return note;
   const midi = Number(m[3]) * 12 + SEMITONE[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + semitones;
   const oct = Math.floor(midi / 12);
-  if (oct < 0 || oct > 8) return note; // keep it inside a sane range
+  if (oct < 0 || oct > 8) return note; // lo mantengo dentro de un rango razonable
   return SHARP_NAMES[((midi % 12) + 12) % 12] + oct;
 }
 
@@ -168,11 +168,11 @@ export function transposeTrack(code, instrument, semitones, { section = null, li
   return arr.join('\n');
 }
 
-// ---- scale helpers for the step editor ------------------------------------------------------
+// ---- ayudas de escala para el editor de pasos ------------------------------------------------------
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const MINOR = [0, 2, 3, 5, 7, 8, 10];
 
-// Notes of the song's key between two octaves, e.g. scaleNotes('a','minor',1,3).
+// Notas de la tonalidad de la canción entre dos octavas, por ejemplo scaleNotes('a','minor',1,3).
 export function scaleNotes(root, mode, fromOct, toOct) {
   const base = SEMITONE[root[0]] + (root[1] === '#' ? 1 : root[1] === 'b' ? -1 : 0);
   const degrees = mode === 'major' ? MAJOR : MINOR;
@@ -186,8 +186,8 @@ export function scaleNotes(root, mode, fromOct, toOct) {
   return out;
 }
 
-// Adds `text` as a new line at the end of a section (after its last non-blank line).
-// With no section name (or an unknown one) it goes at the end of the song.
+// Agrego `text` como línea nueva al final de una sección (después de su última línea no vacía).
+// Sin nombre de sección (o con uno desconocido) va al final de la canción.
 export function insertLineInSection(code, sectionName, text) {
   const arr = lines(code);
   let start = -1;
@@ -213,7 +213,7 @@ export function insertLineInSection(code, sectionName, text) {
   return arr.join('\n');
 }
 
-// Removes one line (1-based line number).
+// Quito una línea (número de línea desde 1).
 export function removeLine(code, lineNo) {
   const arr = lines(code);
   if (lineNo < 1 || lineNo > arr.length) return code;

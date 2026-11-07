@@ -1,5 +1,5 @@
-// AI voices: spoken lines written in the code as   voice "words" female|male [bar N] [style "..."]
-// Audio is generated on the server (cached by content) only when the user clicks Generate.
+// Voces de IA: líneas habladas escritas en el código como   voice "palabras" female|male [bar N] [style "..."]
+// El audio se genera en el servidor (con caché por contenido) solo cuando el usuario toca Generate.
 
 import { api } from './api.js';
 import { h, clear, toast, debounce } from './dom.js';
@@ -98,7 +98,7 @@ export function createVoicesPanel({ player, edit, editor, session, onPending = (
     return rows;
   }
 
-  // ---- record your own voice ----
+  // ---- grabar tu propia voz ----
   const micBox = h('div', { class: 'voice-form mic-box' });
   const mic = { devices: [], deviceId: '', rec: null, timer: null, started: 0, over: true, name: 'vocal 1' };
   const meter = h('div', { class: 'mic-meter' }, h('i'));
@@ -123,7 +123,7 @@ export function createVoicesPanel({ player, edit, editor, session, onPending = (
       toast(e.name === 'NotAllowedError' ? 'Microphone permission was denied. Allow it in the browser address bar.' : `Could not open the microphone: ${e.message}`, 'error', 7000);
       return;
     }
-    await loadDevices(); // labels become available after permission
+    await loadDevices(); // los nombres aparecen recién cuando dan el permiso
     mic.started = Date.now();
     if (mic.over && player.playable) {
       player.stop?.();
@@ -187,7 +187,7 @@ export function createVoicesPanel({ player, edit, editor, session, onPending = (
       h('p', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, 'Takes stay in this browser (nothing is uploaded). They start on bar 1 of the first section; change "bar N" in the code to move one. On another device the take will be missing.'));
   }
 
-  // ---- add form ----
+  // ---- formulario para agregar ----
   const text = h('textarea', { class: 'textarea', rows: 2, maxlength: LIMITS.maxVoiceChars, placeholder: 'Words to say, e.g. "One love, one heart"' });
   const gender = h('select', { class: 'select small-select', 'aria-label': 'Voice' }, [h('option', { value: 'female' }, 'female'), h('option', { value: 'male' }, 'male')]);
   const styleIn = h('input', { class: 'input', maxlength: LIMITS.maxVoiceStyleChars, placeholder: 'tone, e.g. slow, deep and warm (optional)' });

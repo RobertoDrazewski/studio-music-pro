@@ -1,4 +1,4 @@
-// Connects the editor, the parser and the audio engine, and draws the visualizer.
+// Conecta el editor, el parser y el motor de audio, y dibuja el visualizador.
 import { h } from './dom.js';
 import { parse } from '/shared/lang/parser.js';
 import { totalBars } from '/shared/lang/plan.js';
@@ -48,7 +48,7 @@ export class Player {
     return ast ? songInstruments(ast) : [];
   }
 
-  // Parses the editor text. Valid code goes live at the next bar; invalid code keeps the last good version playing.
+  // Parseo el texto del editor. El código válido entra en vivo en el compás siguiente; si es inválido sigue sonando la última versión buena.
   sync(code = this.editor.value) {
     this.result = parse(code);
     this.editor.setDiagnostics({ errors: this.result.errors, warnings: this.result.warnings });
@@ -97,7 +97,7 @@ export class Player {
     this.emit({ type: 'mixer' });
   }
 
-  // Highlights the lines of the section that is playing right now.
+  // Resalto las líneas de la sección que está sonando ahora.
   markActiveSection(pos) {
     const ast = this.lastGood ?? this.result.ast;
     const sec = ast.sections.find((s) => s.name === pos.section) ?? ast.sections[pos.sectionIndex];
@@ -111,7 +111,7 @@ export class Player {
   }
 }
 
-// Canvas oscilloscope drawn from the engine's waveform analyser.
+// Osciloscopio en canvas dibujado desde el analizador de forma de onda del motor.
 export function createScope(player, { height = 84 } = {}) {
   const canvas = h('canvas', { class: 'scope', height });
   const ctx = canvas.getContext('2d');
@@ -163,7 +163,7 @@ export function createScope(player, { height = 84 } = {}) {
   return { el: canvas, stop };
 }
 
-// Row with Play/Stop, section name and a bar progress strip.
+// Fila con Play/Stop, nombre de la sección y una tira de progreso del compás.
 export function createTransport(player, { onPlayClick } = {}) {
   const playBtn = h('button', { class: 'btn primary play', type: 'button' }, '▶ Play');
   const label = h('span', { class: 'now' }, 'Ready');

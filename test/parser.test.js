@@ -99,7 +99,7 @@ test('voice lines: text, gender, bar, style and effects', async () => {
   const v = r.ast.sections[0].voices[0];
   assert.deepEqual({ text: v.text, voice: v.voice, bar: v.bar, style: v.style }, { text: 'Jah love', voice: 'male', bar: 3, style: 'slow and deep' });
   assert.deepEqual(v.effects.map((e) => e.name), ['reverb', 'delay']);
-  // defaults
+  // valores por defecto
   const d = parse('section a 4\n  voice "hello"').ast.sections[0].voices[0];
   assert.deepEqual({ voice: d.voice, bar: d.bar, style: d.style }, { voice: 'female', bar: 1, style: '' });
 });
@@ -108,7 +108,7 @@ test('voice lines: errors and warnings', async () => {
   const { parse } = await import('../shared/lang/parser.js');
   assert.equal(parse('voice hello').ok, false);
   assert.equal(parse('voice ""').ok, false);
-  assert.equal(parse('voice "x" robot').ok, false); // unknown word is treated as an effect name
+  assert.equal(parse('voice "x" robot').ok, false); // una palabra desconocida se trata como nombre de efecto
   assert.equal(parse('voice "x" female bar 0').ok, false);
   assert.equal(parse('voice "x" female sidechain kick').ok, false);
   assert.equal(parse('voice "' + 'a'.repeat(201) + '"').ok, false);

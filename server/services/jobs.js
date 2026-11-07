@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import archiver from 'archiver';
 
-// In-process job queue backed by the `jobs` table. Mastering is CPU heavy, so
-// only `concurrency` jobs run at the same time; the rest wait in the queue.
+// Cola de trabajos en el proceso, apoyada en la tabla `jobs`. El mastering usa mucha CPU, así que
+// solo corren `concurrency` trabajos a la vez; el resto espera en la cola.
 export function createJobs({ db, config, mastering }) {
   const waiting = [];
   let running = 0;
@@ -17,7 +17,7 @@ export function createJobs({ db, config, mastering }) {
     "UPDATE jobs SET status = 'failed', error = ?, finished_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
   );
 
-  // A restart loses the queue: anything unfinished is reported as failed instead of hanging forever.
+  // Un reinicio pierde la cola: lo que no terminó se informa como fallido en vez de quedar colgado para siempre.
   db.prepare(
     "UPDATE jobs SET status = 'failed', error = 'The server restarted before this job finished', finished_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE status IN ('queued','running')",
   ).run();
@@ -37,13 +37,13 @@ export function createJobs({ db, config, mastering }) {
       execute(job)
         .catch((err) => {
           console.error(`[jobs] ${job.id} failed:`, err.message);
-          // Do not leak ffmpeg internals to the client.
+          // No filtro detalles internos de ffmpeg al cliente.
           const safe = err.status ? err.message : 'Processing failed. Try again or use a different file.';
           finishFailed.run(safe, job.id);
           fs.rmSync(jobDir(job.id), { recursive: true, force: true });
         })
         .finally(() => {
-          // Uploaded sources are always removed once the job ends.
+          // Los archivos de origen subidos siempre se borran cuando termina el trabajo.
           fs.rmSync(job.uploadDir, { recursive: true, force: true });
           running--;
           pump();
@@ -73,7 +73,7 @@ export function createJobs({ db, config, mastering }) {
     });
     const zipName = `${job.slug}-project.zip`;
     await buildZip({ zipPath: path.join(dir, zipName), job, outWav, outMp3, metrics });
-    // The individual outputs are already inside the ZIP.
+    // Las salidas individuales ya están dentro del ZIP.
     fs.rmSync(outWav, { force: true });
     fs.rmSync(outMp3, { force: true });
     finishDone.run(zipName, JSON.stringify(metrics), job.id);
@@ -129,14 +129,14 @@ export function createJobs({ db, config, mastering }) {
       fs.rmSync(jobDir(id), { recursive: true, force: true });
       db.prepare("UPDATE jobs SET result_file = NULL, error = COALESCE(error, 'Expired') WHERE id = ?").run(id);
     }
-    // Orphaned temp uploads (e.g. crash mid-upload) older than the TTL.
+    // Subidas temporales huérfanas (por ejemplo un corte a mitad de subida) más viejas que el TTL.
     if (fs.existsSync(config.tmpDir)) {
       for (const entry of fs.readdirSync(config.tmpDir)) {
         const p = path.join(config.tmpDir, entry);
         try {
           if (fs.statSync(p).mtimeMs < Date.now() - jobTtlHours * 3600 * 1000) fs.rmSync(p, { recursive: true, force: true });
         } catch {
-          // ignore races
+          // ignoro carreras
         }
       }
     }

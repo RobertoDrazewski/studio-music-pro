@@ -1,5 +1,5 @@
-// Variety for generated songs: a different key, chord progression and instrument palette every time,
-// so two songs of the same style do not sound like the same song. `rand` is injectable for tests.
+// Variedad para las canciones generadas: una tonalidad, progresión de acordes y paleta de instrumentos distintas cada vez,
+// así dos canciones del mismo estilo no suenan a la misma. `rand` se puede inyectar para los tests.
 
 import { KEY_ROOTS } from './promptbuilder.js';
 
@@ -25,7 +25,7 @@ export const PROGRESSIONS = {
 const DEFAULT_LEADS = ['lead', 'synth', 'keys', 'bell', 'pluck', 'arp'];
 const DEFAULT_MIDS = ['pad', 'strings', 'organ', 'keys', 'stab'];
 
-// Style id -> candidates. Anything not listed uses the defaults.
+// id de estilo -> candidatos. Lo que no está listado usa los valores por defecto.
 const PALETTES = {
   dub: { leads: ['organ', 'keys', 'stab', 'bell'], mids: ['organ', 'stab', 'pad', 'keys'] },
   'dub-techno': { leads: ['stab', 'bell', 'keys'], mids: ['pad', 'stab', 'strings'] },
@@ -57,7 +57,7 @@ function pickTwo(arr, rand) {
   return [a, b];
 }
 
-// Returns a short block of text for the generator prompt.
+// Devuelvo un bloque corto de texto para el prompt del generador.
 export function varietyText({ styleId = null, keyChosen = false, rand = Math.random } = {}) {
   const palette = PALETTES[styleId] ?? { leads: DEFAULT_LEADS, mids: DEFAULT_MIDS };
   const major = rand() < 0.2;

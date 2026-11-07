@@ -13,14 +13,14 @@ test('reaper project has tempo, mix reference, folders and same-length items', (
   });
   assert.match(rpp, /^<REAPER_PROJECT/);
   assert.match(rpp, /TEMPO 98 4 4/);
-  assert.match(rpp, /MUTESOLO 1 0 0/); // muted mix reference
-  assert.equal((rpp.match(/<TRACK/g) ?? []).length, 5); // mix + PERCUSSION folder + kick + snare + bass
+  assert.match(rpp, /MUTESOLO 1 0 0/); // referencia de mezcla en mute
+  assert.equal((rpp.match(/<TRACK/g) ?? []).length, 5); // mezcla + carpeta PERCUSSION + kick + snare + bass
   assert.equal((rpp.match(/POSITION 0\n/g) ?? []).length, 4);
   assert.equal((rpp.match(/LENGTH 61.5/g) ?? []).length, 4);
   assert.match(rpp, /ISBUS 1 1/);
   assert.match(rpp, /ISBUS 2 -1/);
   assert.match(rpp, /FILE "stems\/kick.wav"/);
-  assert.equal((rpp.match(/</g) ?? []).length, (rpp.match(/^\s*>/gm) ?? []).length); // balanced blocks
+  assert.equal((rpp.match(/</g) ?? []).length, (rpp.match(/^\s*>/gm) ?? []).length); // bloques balanceados
 });
 
 test('names cannot break the project file', () => {

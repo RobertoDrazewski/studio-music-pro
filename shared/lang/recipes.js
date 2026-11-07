@@ -1,5 +1,5 @@
-// Copy-and-paste building blocks for the manual. Every recipe is a list of lines that go inside a section;
-// the tests parse all of them, so they are always valid Pulse code.
+// Bloques para copiar y pegar en el manual. Cada receta es una lista de líneas que van dentro de una sección;
+// los tests parsean todas, así que siempre son código Pulse válido.
 
 export const RECIPES = [
   { id: 'four-floor', title: 'Four on the floor', tag: 'House, techno', desc: 'A kick on every beat, a clap on 2 and 4 and hats between the kicks.',

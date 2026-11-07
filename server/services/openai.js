@@ -1,7 +1,7 @@
 import { HttpError } from '../http.js';
 
-// Minimal OpenAI Chat Completions client. The API key never leaves the server.
-// `fetchImpl` is injectable so the tests can run without the network.
+// Cliente mínimo de Chat Completions de OpenAI. La clave de la API nunca sale del servidor.
+// `fetchImpl` se puede inyectar para que los tests corran sin red.
 export function createOpenAI({ config, fetchImpl = fetch }) {
   const { apiKey, baseUrl, model, maxOutputTokens, reasoningEffort, timeoutMs } = config.openai;
 
@@ -32,12 +32,12 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
     }
 
     if (!response.ok) {
-      // Log the provider's message server-side only; never forward it (it can contain account details).
+      // El mensaje del proveedor lo registro solo en el servidor; nunca lo reenvío (puede traer datos de la cuenta).
       let detail = '';
       try {
         detail = (await response.json())?.error?.message ?? '';
       } catch {
-        // ignore body parse errors
+        // ignoro errores al leer el cuerpo
       }
       console.error(`[openai] HTTP ${response.status}: ${detail}`);
       if (response.status === 429) throw new HttpError(503, 'The AI service is busy or its credit is exhausted. Try again later.');
@@ -54,7 +54,7 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
     };
   }
 
-  // Text to speech. Returns an MP3 Buffer.
+  // Texto a voz. Devuelvo un Buffer MP3.
   async function speech({ input, voice, instructions }) {
     if (!apiKey) throw new HttpError(503, 'AI voices are not configured on this server');
     const { ttsModel } = config.openai;
@@ -86,7 +86,7 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
       try {
         detail = (await response.json())?.error?.message ?? '';
       } catch {
-        // ignore body parse errors
+        // ignoro errores al leer el cuerpo
       }
       console.error(`[openai] speech HTTP ${response.status}: ${detail}`);
       if (response.status === 429) throw new HttpError(503, 'The voice service is busy or its credit is exhausted. Try again later.');
@@ -100,7 +100,7 @@ export function createOpenAI({ config, fetchImpl = fetch }) {
   return { chat, speech, model };
 }
 
-// Models sometimes wrap code in markdown fences despite instructions.
+// A veces los modelos envuelven el código en bloques markdown aunque se les pida que no.
 export function extractCode(text) {
   const fenced = text.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
   const body = fenced ? fenced[1] : text;

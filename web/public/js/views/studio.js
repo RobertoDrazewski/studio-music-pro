@@ -1,10 +1,11 @@
 import { api } from '../api.js';
-import { h, clear, toast, debounce, modal, copyText, download } from '../dom.js';
+import { h, clear, toast, debounce, modal } from '../dom.js';
 import { Editor } from '../editor.js';
 import { Player, createScope, createTransport } from '../player.js';
 import { DEMO_SONG } from '/shared/lang/demo.js';
-import { LIMITS } from '/shared/lang/spec.js';
-import { exportViaServer, exportWav, exportStem, exportStudioPack, estimatePackMb } from '../export.js';
+import { exportStem } from '../export.js';
+import { openShare as openShare0 } from './studio-share.js';
+import { openExport as openExport0 } from './studio-export.js';
 import { STYLES, STYLE_BY_ID } from '/shared/lang/styles.js';
 import { openManual } from '../manual.js';
 import { insertLineInSection } from '/shared/lang/edit.js';
@@ -40,7 +41,7 @@ export async function mount(root, projectId) {
   let projects = (await api.projects()).projects;
   let project = null;
 
-  // Open the requested project, or the most recent one, or create the first one.
+  // Abro el proyecto pedido, o el más reciente, o creo el primero.
   if (projectId) {
     try {
       project = (await api.project(projectId)).project;
@@ -55,7 +56,7 @@ export async function mount(root, projectId) {
     return navigate(`/studio/${project.id}`, { replace: true });
   }
 
-  // ---------- editor, player ----------
+  // ---------- editor y reproductor ----------
   const diag = h('div', { class: 'diag' });
   const saveState = h('span', { class: 'save-state' }, 'Saved');
   let saving = 0;
@@ -97,7 +98,7 @@ export async function mount(root, projectId) {
   const scope = createScope(player);
   const transport = createTransport(player);
 
-  // ---------- visual controls (all of them rewrite the code) ----------
+  // ---------- controles visuales (todos reescriben el código) ----------
   const edit = makeEdit(editor);
   const patternEditor = createPatternEditor({ player, edit, editor });
   // Insignias de la barra inferior: número de voces por generar y punto de la IA trabajando.
@@ -106,7 +107,7 @@ export async function mount(root, projectId) {
   // Barra de progreso global: se ve en todas las pestañas mientras la IA escribe.
   const activity = h('div', { class: 'activity', hidden: true, role: 'status' }, h('i'), h('span', {}));
   const showActivity = (text) => { activity.hidden = !text; activity.lastChild.textContent = text || ''; setBadge('ai', text ? 1 : 0); };
-  const mixerUi = createMixer({ mixWithAi: () => runAi('edit', MIX_PROMPT),  player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
+  const mixerUi = createMixer({ mixWithAi: () => runAi('edit', MIX_PROMPT), player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
   const voicesPanel = createVoicesPanel({ player, edit, editor, session, onPending: (n) => setBadge('voices', n) });
@@ -115,7 +116,7 @@ export async function mount(root, projectId) {
     if (e.type === 'state') renderDiag(player.result);
   });
 
-  // ---------- title ----------
+  // ---------- título ----------
   const title = h('input', { class: 'title-input', value: project.title, maxlength: 100, 'aria-label': 'Song title' });
   title.addEventListener('input', () => {
     project.title = title.value;
@@ -124,7 +125,7 @@ export async function mount(root, projectId) {
     if (t) persist({ title: t, code: project.code });
   });
 
-  // ---------- projects list ----------
+  // ---------- lista de canciones ----------
   const list = h('div', { class: 'proj-list' });
   const renderList = () => {
     clear(list);
@@ -160,49 +161,39 @@ export async function mount(root, projectId) {
     } catch (e) { toast(e.message, 'error'); }
   };
 
-  // ---------- demo typing ----------
+  // ---------- tipeo en vivo (demo y plantillas) ----------
+  // Escribo un texto en el editor letra a letra y arranco a sonar apenas la canción ya es válida.
   let typingAbort = null;
-  const typeDemo = async () => {
-    if (editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm('Replace the current code with the demo?')) return;
+  const typeSong = async (text, cps) => {
     typingAbort?.abort();
-    typingAbort = new AbortController();
-    const mine = typingAbort;
+    const mine = (typingAbort = new AbortController());
     try {
       await window.Tone.start();
-      await editor.typeIn(DEMO_SONG, {
-        signal: mine.signal,
-        onLine: (text) => {
-          const r = player.sync(text.slice(0, text.lastIndexOf('\n') + 1));
+      await editor.typeIn(text, {
+        cps, signal: mine.signal,
+        onLine: (t) => {
+          const r = player.sync(t.slice(0, t.lastIndexOf('\n') + 1));
           if (r.ok && player.playable && !player.playing && !mine.signal.aborted) player.play();
         },
       });
       editor.onChange?.(editor.value);
     } finally { if (typingAbort === mine) typingAbort = null; }
   };
+  // Si ya hay algo escrito (que no sea el ejemplo inicial) pido confirmación antes de pisarlo.
+  const confirmReplace = (msg) => !editor.value.trim() || editor.value.trim() === STARTER.trim() || confirm(msg);
+  const typeDemo = () => confirmReplace('Replace the current code with the demo?') && typeSong(DEMO_SONG);
 
-  // ---------- AI ----------
+  // ---------- IA ----------
   const styleSel = h('select', { class: 'select', 'aria-label': 'Music style' },
     h('option', { value: 'auto' }, 'Style: auto-detect from my text'),
     STYLES.map((s) => h('option', { value: s.id }, `${s.name} (${s.bpm[0]}-${s.bpm[1]} bpm)`)));
+  // Plantilla gratis: carga una canción de ejemplo del estilo elegido y le pone nombre.
   const loadTemplate = async () => {
     const style = STYLE_BY_ID[styleSel.value];
     if (!style) return toast('Pick a style first', 'error');
-    if (editor.value.trim() && editor.value.trim() !== STARTER.trim() && !confirm(`Replace the current code with the ${style.name} template?`)) return;
-    typingAbort?.abort();
-    typingAbort = new AbortController();
-    const mine = typingAbort;
-    try {
-      await window.Tone.start();
-      await editor.typeIn(style.example, {
-        cps: 90, signal: mine.signal,
-        onLine: (text) => {
-          const r = player.sync(text.slice(0, text.lastIndexOf('\n') + 1));
-          if (r.ok && player.playable && !player.playing && !mine.signal.aborted) player.play();
-        },
-      });
-      editor.onChange?.(editor.value);
-      if (!/\b(template|reference)\b/.test(title.value)) { title.value = `${style.name} template`; title.dispatchEvent(new Event('input')); }
-    } finally { if (typingAbort === mine) typingAbort = null; }
+    if (!confirmReplace(`Replace the current code with the ${style.name} template?`)) return;
+    await typeSong(style.example, 90);
+    if (!/\b(template|reference)\b/.test(title.value)) { title.value = `${style.name} template`; title.dispatchEvent(new Event('input')); }
   };
   const aiPrompt = h('textarea', { class: 'textarea', maxlength: 600, placeholder: 'Write anything you want, in your own words. It is added to the clicks above.' });
   const promptPanel = createPromptPanel({
@@ -235,7 +226,7 @@ export async function mount(root, projectId) {
       const res = await api.generate(prompt, mode === 'edit' ? editor.value : undefined, styleSel.value);
       if (session.quota?.ai && res.quota) session.quota = { ...session.quota, ai: { ...session.quota.ai, remaining: res.quota.remaining } };
       if (player.playing) {
-        editor.setValue(res.code); // goes live on the next bar
+        editor.setValue(res.code); // entra en vivo en el compás siguiente
       } else {
         await window.Tone.start();
         await editor.typeIn(res.code, { cps: 160, onLine: (t) => player.sync(t.slice(0, t.lastIndexOf('\n') + 1)) });
@@ -258,131 +249,17 @@ export async function mount(root, projectId) {
   aiBtnEdit.addEventListener('click', () => runAi('edit'));
   aiPrompt.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runAi(editor.value.trim() ? 'edit' : 'new'); });
 
-  // ---------- share ----------
-  const openShare = async () => {
-    const show = (p) => {
-      const url = `${location.origin}/s/${p.shareSlug}`;
-      const input = h('input', { class: 'input mono', readonly: true, value: url, onfocus: (e) => e.target.select() });
-      const body = p.shared
-        ? h('div', {}, h('p', { class: 'muted', style: 'margin-bottom:10px' }, 'Anyone with this link can listen and play with a copy of the code. Your edits after sharing are visible too.'), input)
-        : h('p', { class: 'muted' }, 'Sharing is off. Turn it on to get a public link to this song.');
-      dlg.setBody(body);
-      dlg.setActions(p.shared
-        ? [h('button', { class: 'btn danger', onclick: async () => { project = { ...project, ...(await api.shareProject(project.id, false)).project }; show(project); } }, 'Stop sharing'),
-           h('button', { class: 'btn primary', onclick: () => copyText(url) }, 'Copy link')]
-        : [h('button', { class: 'btn primary', onclick: async () => { await flush(); project = { ...project, ...(await api.shareProject(project.id, true)).project }; show(project); } }, 'Create public link')]);
-    };
-    const bodyEl = h('div');
-    const actionsEl = h('div', { class: 'modal-actions', style: 'padding:0' });
-    const m = modal({ title: 'Share this song', body: [bodyEl, h('div', { style: 'margin-top:16px' }, actionsEl)] });
-    const dlg = {
-      setBody: (b) => bodyEl.replaceChildren(b),
-      setActions: (a) => actionsEl.replaceChildren(...a),
-    };
-    void m;
-    show(project);
-  };
+  // Compartir y exportar viven en sus propios archivos; acá solo los conecto con el estado de la canción.
+  const projectCtx = { project: () => project, setProject: (p) => (project = { ...project, ...p }), flush: () => flush() };
+  const openShare = () => openShare0(projectCtx);
+  const openExport = () => openExport0({ locked, lockedModal, player, editor, title, flush });
 
-  // ---------- export / master ----------
-  const openExport = async () => {
-    if (locked) return lockedModal();
-    if (!player.playable) return toast('Fix the errors (or add a section) before exporting', 'error');
-    await flush();
-    let presets = [];
-    try { presets = (await api.presets()).presets; } catch { /* handled by empty list */ }
-    const preset = h('select', { class: 'select' }, presets.map((p) => h('option', { value: p.id }, `${p.id}: ${p.description}`)));
-    const lufs = h('input', { class: 'input', type: 'number', min: -23, max: -6, step: 0.5, placeholder: 'Preset default' });
-    const nameInput = h('input', { class: 'input', value: title.value || 'song', maxlength: 100 });
-    const mq = session.quota?.master;
-    const mqText = mq ? (mq.limit === null ? 'Masters today: unlimited' : `Masters today: ${mq.remaining} of ${mq.limit} left`) : '';
-    const packMode = h('select', { class: 'select' },
-      h('option', { value: 'instrument' }, 'Each instrument (kick, bass, pad, lead, voices…)'),
-      h('option', { value: 'group' }, 'Groups (percussion, bass, mids, lead, voices)'),
-      h('option', { value: 'both' }, 'Both: instruments and groups'));
-    const packBits = h('select', { class: 'select' }, h('option', { value: '24' }, '24-bit'), h('option', { value: '16' }, '16-bit (smaller)'));
-    const packRpp = h('input', { type: 'checkbox', checked: true });
-    const packNote = h('p', { class: 'muted', style: 'font-size:12px' });
-    const updatePackNote = () => {
-      const mb = estimatePackMb(player.ast, packMode.value, Number(packBits.value));
-      packNote.textContent = `About ${mb} MB. Every file has the same length and starts at 0, so they line up in any DAW.${mb > 600 ? ' Large: try 16-bit or groups.' : ''}`;
-    };
-    packMode.addEventListener('change', updatePackNote); packBits.addEventListener('change', updatePackNote); updatePackNote();
-    const stage = h('div');
-    const form = h('div', {},
-      h('img', { class: 'stage-img', src: '/img/master-processing-wide.jpg', alt: '' }),
-      h('div', { class: 'field' }, h('label', {}, 'File name'), nameInput),
-      h('div', { class: 'row' }, h('div', { class: 'field', style: 'flex:2;min-width:200px' }, h('label', {}, 'Mastering preset'), preset),
-        h('div', { class: 'field', style: 'flex:1;min-width:120px' }, h('label', {}, 'Target LUFS'), lufs)),
-      h('div', { class: 'pack-box' },
-        h('h4', {}, 'Studio pack for Reaper (free, made in your browser)'),
-        h('div', { class: 'row' },
-          h('div', { class: 'field', style: 'flex:2;min-width:180px' }, h('label', {}, 'Separate files'), packMode),
-          h('div', { class: 'field', style: 'flex:1;min-width:110px' }, h('label', {}, 'Bit depth'), packBits)),
-        h('label', { class: 'check' }, packRpp, ' Include a Reaper project (project.rpp)'),
-        packNote),
-      h('p', { class: 'muted', style: 'font-size:13px' }, `${mqText}${mqText ? ' · ' : ''}The mix and each instrument are rendered in your browser, so a long song can take a minute.`),
-      stage);
-    let running = null;
-    const m = modal({ title: 'Export', body: form, wide: true, onClose: () => running?.abort() });
-
-    const setStage = (text, pct) => {
-      stage.replaceChildren(h('p', { class: 'mono', style: 'margin-top:12px' }, text), h('div', { class: 'big-bar' }, h('i', { style: `width:${Math.round((pct ?? 0) * 100)}%` })));
-    };
-    const buttons = [];
-    const lock = (v) => buttons.forEach((b) => (b.disabled = v));
-    const run = async (kind) => {
-      running = new AbortController();
-      lock(true);
-      try {
-        const t = nameInput.value.trim() || 'song';
-        if (kind === 'pack') {
-          let pct = 0;
-          const res = await exportStudioPack({
-            ast: player.ast, code: editor.value, title: t, mode: packMode.value, bits: Number(packBits.value), rpp: packRpp.checked,
-            onStatus: (s) => setStage(s, pct), onProgress: (p) => { pct = p * 0.9; },
-          });
-          stage.replaceChildren(h('p', { class: 'mono' }, `✓ Studio pack downloaded (${res.files} files, ${Math.round(res.bytes / 1e6)} MB)`));
-        } else if (kind === 'wav') {
-          setStage('Rendering…', 0.4);
-          await exportWav(player.ast, t, (s) => setStage(s, 0.4));
-          stage.replaceChildren(h('p', { class: 'mono' }, '✓ WAV downloaded'));
-        } else {
-          let pct = 0;
-          const res = await exportViaServer({
-            ast: player.ast, code: editor.value, title: t, kind, preset: preset.value,
-            targetLufs: lufs.value ? Number(lufs.value) : undefined, signal: running.signal,
-            onStatus: (s) => setStage(s, pct), onProgress: (p) => { pct = p * 0.7; },
-          });
-          setStage('Downloading…', 1);
-          const r = await fetch(res.url, { credentials: 'same-origin' });
-          if (!r.ok) throw new Error('Download failed');
-          download(await r.blob(), res.filename);
-          const metrics = res.job.metrics;
-          stage.replaceChildren(
-            h('img', { class: 'stage-img', src: '/img/master-result-wide.jpg', alt: '' }),
-            h('p', { class: 'mono' }, '✓ Done. Your download has started.'),
-            metrics?.outputLufs !== undefined ? h('p', { class: 'muted mono', style: 'font-size:13px' }, `Loudness ${metrics.outputLufs} LUFS · true peak ${metrics.outputTruePeakDb} dBTP`) : null);
-          const me = await api.me().catch(() => null);
-          if (me) session.quota = me.quota;
-        }
-      } catch (e) {
-        stage.replaceChildren(h('p', { class: 'error-text' }, e.message));
-      } finally { lock(false); running = null; }
-    };
-    const bMaster = h('button', { class: 'btn primary', onclick: () => run('master') }, 'Master + stems (ZIP)');
-    const bMp3 = h('button', { class: 'btn', onclick: () => run('mp3') }, 'MP3 of the mix');
-    const bWav = h('button', { class: 'btn', onclick: () => run('wav') }, 'WAV of the mix');
-    const bPack = h('button', { class: 'btn primary', onclick: () => run('pack') }, 'Studio pack for Reaper (ZIP)');
-    buttons.push(bMaster, bMp3, bWav, bPack);
-    m.el.querySelector('.modal').append(h('div', { class: 'modal-actions' }, bWav, bMp3, bMaster, bPack));
-  };
-
-  // ---------- language reference ----------
+  // ---------- referencia del lenguaje ----------
   const insertFromManual = (lines) => {
     const ast = player.result.ok ? player.result.ast : player.lastGood ?? player.result.ast;
     const sec = player.position?.section ?? ast.sections.at(-1)?.name ?? null;
     edit((c) => {
-      // Whole sections / globals go at the end of the song; instrument lines go inside the current section.
+      // Las secciones y ajustes globales van al final de la canción; las líneas de instrumento, dentro de la sección actual.
       if (lines.some((l) => /^(section|bpm|key|swing|master|loop|mute|solo)\b/.test(l.trim()))) return `${c.trimEnd()}\n\n${lines.join('\n')}\n`;
       return lines.reduce((acc, l) => insertLineInSection(acc, sec, l), c);
     });
@@ -390,7 +267,7 @@ export async function mount(root, projectId) {
   };
   const reference = h('button', { class: 'btn manual-btn', type: 'button', onclick: () => openManual({ insert: insertFromManual }) }, icon('book', { size: 17 }), 'Open the full manual');
 
-  // ---------- layout ----------
+  // ---------- diseño de la pantalla ----------
   const userMenu = createUserMenu({ beforeLeave: flush });
   const topbar = h('header', { class: 'topbar' },
     link('/', { class: 'icon-btn home-btn', title: 'Back to the website', 'aria-label': 'Back to the website' }, icon('home', { size: 18 })),
@@ -415,7 +292,7 @@ export async function mount(root, projectId) {
       h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')),
     acc('2 · Edit current song', true, aiPrompt, promptPanel.el),
     acc('Or write a new song with AI', false, h('div', { class: 'row' }, aiBtnNew)), aiNote, reference);
-  // Bottom navigation (phones): one panel at a time.
+  // Navegación inferior (celulares): un panel a la vez.
   const TABS = [['songs', 'music', 'Songs'], ['mixer', 'sliders', 'Mixer'], ['play', 'play', 'Play'], ['voices', 'mic', 'Voices'], ['ai', 'sparkles', 'AI']];
   const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
   const nav = h('nav', { class: 'bottom-nav', 'aria-label': 'Studio sections' });

@@ -61,7 +61,7 @@ test('prompt builder: clicks and free text compose one precise prompt', async ()
   assert.match(p, /Use these instruments: kick, bass\./);
   assert.match(p, /voice "Jah love" male style "slow"/);
   assert.match(p, /Extra details from the user: con mucho groove/);
-  // free text alone is passed as-is; explicit bpm is picked up by the generator
+  // el texto libre solo se pasa tal cual; el bpm explícito lo recoge el generador
   assert.equal(composePrompt(emptySelection(), 'hola mundo'), 'hola mundo');
   assert.equal(buildGeneratorMessages({ prompt: p, styleId: 'techno' }).explicitBpm, 138);
 });
@@ -115,6 +115,6 @@ test('variety: different picks each time, respects a chosen key and the style pa
   const fixed = () => 0;
   const m = buildGeneratorMessages({ prompt: 'a techno track', styleId: 'techno', rand: fixed });
   assert.match(m.messages[1].content, /VARIATION FOR THIS SONG/);
-  // edit mode never adds variation
+  // el modo edición nunca agrega variación
   assert.doesNotMatch(buildGeneratorMessages({ prompt: 'faster', code: 'bpm 120', rand: fixed }).messages[1].content, /VARIATION/);
 });
