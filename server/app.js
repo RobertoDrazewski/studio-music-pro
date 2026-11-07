@@ -120,6 +120,8 @@ export async function createApp(config, { fetchImpl } = {}) {
         `<meta property="og:description" content="${esc(description)}">`,
         `<meta name="description" content="${esc(description)}">`,
         `<meta property="og:site_name" content="${esc(config.appName)}">`,
+        `<meta property="og:locale" content="en_US">`,
+        `<meta property="og:locale:alternate" content="es_LA">`,
         `<meta property="og:type" content="${type}">`,
         `<meta property="og:url" content="${esc(base)}${esc(req.originalUrl.split('?')[0])}">`,
         `<meta property="og:image" content="${esc(base)}/img/og-share.jpg">`,
@@ -142,8 +144,8 @@ export async function createApp(config, { fetchImpl } = {}) {
             .get(req.params.slug)
         : null;
       res.set('Cache-Control', 'no-cache');
-      if (!row) return res.status(404).type('html').send(withMeta(req, `Song not found · ${config.appName}`, 'This song is not available.'));
-      res.type('html').send(withMeta(req, `${row.title} · ${config.appName}`, `A song by ${row.author}, written as code and played in the browser.`));
+      if (!row) return res.status(404).type('html').send(withMeta(req, `Song not found · Canción no encontrada · ${config.appName}`, 'This song is not available. · Esta canción no está disponible.'));
+      res.type('html').send(withMeta(req, `${row.title} · ${config.appName}`, `A song by ${row.author}, written as code and played in the browser. · Una canción de ${row.author}, escrita como código y reproducida en el navegador.`));
     });
 
     // The service worker must never be served from a stale cache, or app updates would not arrive.
@@ -154,7 +156,7 @@ export async function createApp(config, { fetchImpl } = {}) {
     app.use(express.static(config.webDir, staticOpts));
     app.get(/^(?!\/(api|shared|vendor)\/).*/, (req, res) => {
       res.set('Cache-Control', 'no-cache');
-      res.type('html').send(withMeta(req, `${config.appName} · Make music by typing code`, 'Write a few lines, hear them instantly and keep editing while the track plays. Let AI draft the first idea, then export the full song, every track or a Reaper project.', 'website'));
+      res.type('html').send(withMeta(req, `${config.appName} · Make music by typing code / Haz música escribiendo código`, 'Write a few lines, hear them instantly and export your track or a Reaper project. · Escribe unas líneas, escúchalas al instante y exporta tu tema o un proyecto de Reaper.', 'website'));
     });
   }
 
