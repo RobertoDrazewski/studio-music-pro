@@ -3,6 +3,7 @@
 
 import { api } from './api.js';
 import { h, clear, toast, debounce } from './dom.js';
+import { icon } from './icons.js';
 import { voiceBuffers } from './engine.js';
 import { voiceKey } from '/shared/lang/plan.js';
 import { insertLineInSection, removeLine } from '/shared/lang/edit.js';
@@ -175,13 +176,13 @@ export function createVoicesPanel({ player, edit, editor, session }) {
     const over = h('input', { type: 'checkbox', checked: mic.over, disabled: recording, 'aria-label': 'Play the song while recording' });
     over.addEventListener('change', () => { mic.over = over.checked; });
     micBox.append(
-      h('div', { class: 'pb-title' }, '🎙 Record your voice'),
+      h('div', { class: 'pb-title' }, icon('mic', { size: 14 }), ' Record your voice'),
       dev, nameIn,
       h('label', { class: 'muted', style: 'font-size:12px;display:block;margin:4px 0' }, over, ' Play the song while I record (use headphones)'),
       h('div', { class: 'row', style: 'gap:8px' },
         recording
-          ? h('button', { class: 'btn small danger', type: 'button', onclick: stopRec }, '■ Stop')
-          : h('button', { class: 'btn small primary', type: 'button', onclick: startRec }, '● Record'),
+          ? h('button', { class: 'btn small danger', type: 'button', onclick: stopRec }, icon('stop', { size: 13 }), ' Stop')
+          : h('button', { class: 'btn small primary', type: 'button', onclick: startRec }, icon('disc', { size: 13 }), ' Record'),
         meter, micStatus),
       h('p', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, 'Takes stay in this browser (nothing is uploaded). They start on bar 1 of the first section; change "bar N" in the code to move one. On another device the take will be missing.'));
   }
@@ -224,7 +225,7 @@ export function createVoicesPanel({ player, edit, editor, session }) {
       const key = voiceKey(v);
       const st = status.get(key) ?? 'missing';
       const isMic = v.voice === 'mic';
-      const name = h('div', { class: 'vc-text' }, isMic ? `🎙 ${v.text}` : `“${v.text}”`);
+      const name = h('div', { class: 'vc-text' }, isMic ? [icon('mic', { size: 13 }), ` ${v.text}`] : `“${v.text}”`);
       const meta = h('div', { class: 'muted', style: 'font-size:12px' },
         `${isMic ? 'your recording' : v.voice} · section ${v.section} · bar ${v.bar}${v.style ? ` · ${v.style}` : ''} · `,
         h('span', { class: `chip ${st === 'ready' ? 'ok' : st === 'error' ? 'off' : ''}`, title: errors.get(key) ?? '' },

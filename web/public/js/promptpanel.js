@@ -1,12 +1,22 @@
 // "Build by clicks": a guided prompt builder. Clicks + free text -> one precise prompt (shared/lang/promptbuilder.js).
 
 import { h } from './dom.js';
+import { icon } from './icons.js';
 import { LIMITS } from '/shared/lang/spec.js';
 import {
   MOODS, ENERGIES, STRUCTURES, BASS_TYPES, FEELS, FX_CHOICES, KEY_ROOTS, KEY_SCALES,
   INSTRUMENT_GROUPS, QUICK_EDITS, EDIT_GROUPS, STRENGTHS, PRESETS,
   emptySelection, composePrompt, selectionIsEmpty,
 } from '/shared/lang/promptbuilder.js';
+
+const EDIT_ICON = {
+  faster: 'arrowRight', slower: 'arrowLeft', 'more-groove': 'waveform', halftime: 'clock', 'heavier-bass': 'speaker', 'lighter-bass': 'wave2',
+  brighter: 'sun', darker: 'moon', 'softer-mids': 'wave2', punchier: 'drum', 'more-space': 'layers', drier: 'disc', wider: 'arrowsH',
+  automation: 'sliderH', 'add-intro': 'arrowRight', 'add-build': 'gauge', 'add-drop': 'zap', 'add-break': 'wave2', 'add-outro': 'arrowLeft',
+  simplify: 'sliders', 'more-variation': 'repeat', 'new-melody': 'music', 'new-bassline': 'speaker', 'new-chords': 'keys', 'more-drums': 'drum',
+  'add-keys': 'keys', 'add-organ': 'layers', 'add-stabs': 'zap', 'add-strings': 'wave2', 'add-bell': 'bell', 'swap-lead': 'repeat',
+};
+const GROUP_ICON = { tempo: 'clock', tone: 'sliders', space: 'globe', structure: 'layers', parts: 'keys' };
 
 export function createPromptPanel({ getStyleName, setStyle, freeText, onApply = () => {}, onChange = () => {} }) {
   let sel = emptySelection();
@@ -42,11 +52,11 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onApply = 
   function editCard() {
     const n = sel.edits.length;
     const cards = EDIT_GROUPS.map((g) => h('div', { class: 'ed-group' },
-      h('div', { class: 'ed-title' }, h('span', { class: 'ed-ico', 'aria-hidden': 'true' }, g.icon), g.label),
+      h('div', { class: 'ed-title' }, icon(GROUP_ICON[g.id] ?? 'dot', { size: 14 }), g.label),
       h('div', { class: 'ed-grid' }, QUICK_EDITS.filter((e) => e.group === g.id).map((e) =>
         h('button', { type: 'button', class: `ed-card${sel.edits.includes(e.id) ? ' on' : ''}`, 'aria-pressed': String(sel.edits.includes(e.id)), title: e.text,
           onclick: () => { toggleIn(sel.edits, e.id); render(); changed(); } },
-        h('span', { class: 'ed-i', 'aria-hidden': 'true' }, e.icon), h('span', { class: 'ed-l' }, e.label))))));
+        h('span', { class: 'ed-i' }, icon(EDIT_ICON[e.id] ?? 'dot', { size: 20 })), h('span', { class: 'ed-l' }, e.label))))));
     const strength = h('div', { class: 'ed-seg', role: 'group', 'aria-label': 'Strength of the changes' },
       STRENGTHS.map((s) => h('button', { type: 'button', class: sel.strength === s.id ? 'on' : '', onclick: () => { sel.strength = s.id; render(); changed(); } }, s.label)));
     return h('section', { class: 'ed' },
@@ -56,8 +66,8 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onApply = 
       h('div', { class: 'ed-strength' }, h('span', {}, 'Strength'), strength),
       ...cards,
       h('div', { class: 'ed-foot' },
-        h('button', { type: 'button', class: 'btn ed-apply', onclick: onApply }, n ? `✨ Apply ${n} change${n > 1 ? 's' : ''} to my song` : '✨ Apply to my song'),
-        n ? h('button', { type: 'button', class: 'btn small ghost', style: 'flex:none', onclick: () => { sel.edits = []; render(); changed(); } }, 'Clear') : null),
+        h('button', { type: 'button', class: 'btn ed-apply', onclick: onApply }, icon('sparkles', { size: 17 }), h('span', {}, n ? `Apply ${n} change${n > 1 ? 's' : ''} to my song` : 'Apply to my song'))),
+      n ? h('button', { type: 'button', class: 'ed-clear', onclick: () => { sel.edits = []; render(); changed(); } }, icon('x', { size: 13 }), 'Deselect all changes') : null,
       h('p', { class: 'muted', style: 'font-size:12px;margin:0' }, 'Instruments, bass, mood, tempo and key chosen below are applied too. Your text above is added as extra detail.'));
   }
 
@@ -106,7 +116,7 @@ export function createPromptPanel({ getStyleName, setStyle, freeText, onApply = 
           h('div', { class: 'pb-chips' }, chip(sel.voice.on ? 'Voice: on' : 'Voice: off', sel.voice.on, () => { sel.voice.on = !sel.voice.on; }),
             sel.voice.on ? [vGender, h('label', { class: 'muted', style: 'font-size:12px' }, aiLy, ' AI writes the lyrics'), sel.voice.aiLyrics ? lang : null] : null),
           sel.voice.on ? vText : null)),
-      h('div', { class: 'pb-actions' }, h('button', { type: 'button', class: 'btn small', onclick: () => { sel = emptySelection(); render(); changed(); } }, 'Clear all clicks')),
+      h('div', { class: 'pb-actions' }, h('button', { type: 'button', class: 'btn small', onclick: () => { sel = emptySelection(); render(); changed(); } }, 'Reset all selections')),
       h('div', { class: 'pb-title' }, 'What the AI will receive'), previewTabs, preview);
   }
 

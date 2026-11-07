@@ -63,6 +63,10 @@ const MIGRATIONS = [
   ALTER TABLE users ADD COLUMN voice_monthly_quota INTEGER NOT NULL DEFAULT 10;
   ALTER TABLE ai_usage ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat';
   `,
+  // 3: profile picture (small data URL, resized in the browser).
+  `
+  ALTER TABLE users ADD COLUMN avatar TEXT;
+  `,
 ];
 
 export function openDb(dbPath) {

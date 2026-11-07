@@ -2,10 +2,15 @@ import { api } from '../api.js';
 import { h, clear } from '../dom.js';
 import { session, navigate, brand } from '../main.js';
 import { APP_NAME } from '../config.js';
+import { icon } from '../icons.js';
+import { langSwitch, siteFooter } from '../components.js';
 
 export function mount(root) {
   const card = h('div', { class: 'auth-card' });
-  root.append(h('main', { class: 'auth' }, card));
+  root.append(
+    h('header', { class: 'auth-top' }, h('a', { class: 'btn small ghost', href: '/' }, icon('arrowLeft', { size: 14 }), ' Back to the website'), langSwitch()),
+    h('main', { class: 'auth' }, card),
+    siteFooter());
 
   const loginForm = () => {
     const err = h('div', { class: 'error-text', role: 'alert' });

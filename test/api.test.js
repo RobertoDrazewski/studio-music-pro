@@ -381,3 +381,31 @@ test('AI voices: counted in the global budget, admin can set the voice quota', a
     await tiny.stop();
   }
 });
+
+test('profile: name and picture can be changed, invalid pictures are rejected', async () => {
+  const admin = await loginAdmin(app.base);
+  const u = await createUser(app.base, admin, { email: 'pic@example.com', name: 'Pic' });
+  const tiny = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const ok = await u.client.patch('/api/auth/profile', { name: 'Pic Updated', avatar: tiny });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.data.user.name, 'Pic Updated');
+  assert.equal(ok.data.user.avatar, tiny);
+  assert.equal((await u.client.get('/api/auth/me')).data.user.avatar, tiny);
+  assert.equal((await u.client.patch('/api/auth/profile', { avatar: 'data:text/html;base64,AAAA' })).status, 400);
+  assert.equal((await u.client.patch('/api/auth/profile', { name: '   ' })).status, 400);
+  const cleared = await u.client.patch('/api/auth/profile', { avatar: null });
+  assert.equal(cleared.data.user.avatar, null);
+  assert.equal((await client(app.base).patch('/api/auth/profile', { name: 'x' })).status, 401);
+});
+
+test('demo plan: one song, no master export; paid plans have no such limits', async () => {
+  const admin = await loginAdmin(app.base);
+  const demo = await createUser(app.base, admin, { email: 'demo@example.com', plan: 'trial' });
+  assert.equal((await demo.client.get('/api/auth/me')).data.user.limits.canDownload, false);
+  assert.equal((await demo.client.post('/api/projects', { title: 'One', code: 'bpm 120' })).status, 201);
+  assert.equal((await demo.client.post('/api/projects', { title: 'Two', code: 'bpm 120' })).status, 403);
+  assert.equal((await demo.client.post('/api/master', {})).status, 403);
+  const paid = await createUser(app.base, admin, { email: 'paid@example.com', plan: 'creator' });
+  assert.equal((await paid.client.post('/api/projects', { title: 'A', code: 'bpm 120' })).status, 201);
+  assert.equal((await paid.client.post('/api/projects', { title: 'B', code: 'bpm 120' })).status, 201);
+});

@@ -68,6 +68,8 @@ export const api = {
     return { blob: await res.blob(), cached: res.headers.get('X-Voice-Cached') === '1' };
   },
 
+  updateProfile: (patch) => request('PATCH', '/api/auth/profile', patch),
+
   presets: () => request('GET', '/api/master/presets'),
   startUpload: () => request('POST', '/api/master/uploads', {}),
   uploadMix: (id, blob) => request('PUT', `/api/master/uploads/${id}/mix`, blob),

@@ -4,33 +4,74 @@ import { Editor } from '../editor.js';
 import { Player, createScope } from '../player.js';
 import { DEMO_SONG } from '/shared/lang/demo.js';
 import { session, link, brand } from '../main.js';
-import { APP_NAME } from '../config.js';
+import { icon } from '../icons.js';
+import { langSwitch, siteFooter } from '../components.js';
 
-const INSTRUMENTS = ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc', 'bass', 'sub', 'pad', 'strings', 'organ', 'keys', 'stab', 'lead', 'synth', 'bell', 'pluck', 'arp'];
+const TABS = [
+  ['demo', 'play', 'Demo'],
+  ['features', 'sparkles', 'Features'],
+  ['sounds', 'speaker', 'Sounds'],
+  ['plans', 'crown', 'Plans'],
+];
+
+const FEATURES = [
+  ['code', 'Live coding', 'Edit while it plays. Valid changes land on the next bar and mistakes are highlighted without stopping the music.'],
+  ['sparkles', 'AI that writes code, not audio', 'Describe a mood and get an editable song back. Read every line, change it and keep what you like.'],
+  ['wand', 'Build and edit with clicks', 'Pick style, mood, instruments and quick edits with buttons, then apply them to your song.'],
+  ['mic', 'Voices and your own takes', 'Add spoken lines with AI voices or record your own vocals right in the browser.'],
+  ['layers', 'Tracks and Reaper project', 'Download each instrument or group as WAV, or a ZIP with the full mix, every track and a Reaper project.'],
+  ['gauge', 'Mastered export', 'One click renders your song, balances loudness and exports WAV, MP3 or a mastered ZIP.'],
+];
+
+const SOUND_GROUPS = [
+  ['drum', 'Percussion', ['kick', 'snare', 'clap', 'hat', 'openhat', 'perc']],
+  ['speaker', 'Bass', ['bass', 'sub']],
+  ['keys', 'Mids', ['pad', 'strings', 'organ', 'keys', 'stab', 'pluck', 'arp']],
+  ['zap', 'Lead', ['lead', 'synth', 'bell']],
+  ['mic', 'Voices', ['voice']],
+];
+
+const PLANS = [
+  { id: 'free', name: 'Free', icon: 'music', month: 0, year: 0, blurb: 'Try the studio with one song, no card needed.',
+    items: ['1 song to try the studio', 'Live editor, manual and click builder', 'Play it in the browser', 'Downloads are not included'] },
+  { id: 'creator', name: 'Creator', icon: 'zap', month: 9, year: 90, popular: true, blurb: 'For musicians who release and mix every week.',
+    items: ['Everything in Free', 'Unlimited songs', 'Download the full song or each track', 'Reaper project export', '40 AI songs per month', '20 AI voice clips per month', '10 masters per day'] },
+  { id: 'studio', name: 'Studio', icon: 'crown', month: 19, year: 190, blurb: 'For producers and bands working every day.',
+    items: ['Everything in Creator', '150 AI songs per month', '100 AI voice clips per month', '25 masters per day'] },
+];
 
 export function mount(root) {
   const loggedIn = !!session.user;
-  const nav = h('header', { class: 'nav' }, brand(), h('span', { class: 'spacer' }), createInstallButton(),
-    h('a', { href: '#demo', class: 'btn ghost small' }, 'Try the demo'),
-    loggedIn ? link('/studio', { class: 'btn primary small' }, 'Open studio') : link('/login', { class: 'btn primary small' }, 'Sign in'));
+  const cta = (cls = 'btn primary') => (loggedIn ? link('/studio', { class: cls }, 'Open studio') : link('/login', { class: cls }, 'Sign in'));
 
-  const hero = h('section', { class: 'hero' }, h('div', {},
-    h('h1', {}, 'Make music by ', h('em', {}, 'typing code.')),
-    h('p', { class: 'lead' }, 'Write a few lines, hear them instantly, and keep editing while the track plays. Let AI draft the first idea, then export a mastered song with its stems.'),
-    h('div', { class: 'cta' },
-      h('a', { href: '#demo', class: 'btn primary big' }, '▶ Watch it play itself'),
-      loggedIn ? link('/studio', { class: 'btn big' }, 'Open studio') : link('/login', { class: 'btn big' }, 'Sign in'))));
+  // ---------- header ----------
+  const tabBtns = [];
+  const tabs = h('nav', { class: 'lp-tabs', role: 'tablist', 'aria-label': 'Sections' }, TABS.map(([id, ic, label]) => {
+    const b = h('button', { type: 'button', role: 'tab', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 16 }), h('span', {}, label));
+    tabBtns.push(b);
+    return b;
+  }));
+  const top = h('header', { class: 'lp-top' },
+    h('div', { class: 'lp-left' }, brand()),
+    tabs,
+    h('div', { class: 'lp-right' }, langSwitch(), createInstallButton(), cta('btn primary small')));
 
-  // --- Demo: the song types itself and the music follows the code ---
+  const beta = h('div', { class: 'lp-beta' }, h('span', { class: 'beta-chip' }, 'Beta'),
+    h('span', {}, 'Public beta. We are still improving Pulse Studio, so some things may change.'));
+
+  // ---------- demo panel ----------
   const editor = new Editor({ value: '// Press play. The song writes itself.\n// Then change anything: edits land on the next bar.\n', onChange: () => player.sync() });
   const player = new Player(editor);
   const scope = createScope(player);
   let abort = null;
-  const demoBtn = h('button', { class: 'btn primary big', type: 'button' }, '▶ Play demo');
+  const label = (name, text) => h('span', {}, icon(name, { size: 16 }), h('span', {}, text));
+  const demoBtn = h('button', { class: 'btn primary big', type: 'button' });
   const skipBtn = h('button', { class: 'btn', type: 'button', hidden: true }, 'Skip typing');
-  const status = h('span', { class: 'muted mono' }, 'Sound starts when you press play.');
+  const status = h('span', { class: 'lp-status' }, 'Sound starts when you press play.');
+  const consoleEl = h('div', { class: 'console' });
 
-  const setIdle = () => { demoBtn.textContent = '▶ Play demo'; demoBtn.classList.remove('playing'); skipBtn.hidden = true; };
+  const setIdle = () => { demoBtn.replaceChildren(label('play', 'Play demo')); demoBtn.classList.remove('playing'); skipBtn.hidden = true; consoleEl.classList.remove('live'); };
+  setIdle();
 
   demoBtn.addEventListener('click', async () => {
     if (player.playing || abort) {
@@ -41,8 +82,9 @@ export function mount(root) {
     }
     abort = new AbortController();
     const mine = abort;
-    demoBtn.textContent = '■ Stop';
+    demoBtn.replaceChildren(label('stop', 'Stop'));
     demoBtn.classList.add('playing');
+    consoleEl.classList.add('live');
     skipBtn.hidden = false;
     status.textContent = 'Typing…';
     try {
@@ -70,52 +112,84 @@ export function mount(root) {
   skipBtn.addEventListener('click', () => abort?.abort());
   player.on((e) => { if (e.type === 'state' && !e.playing && !abort) setIdle(); });
 
-  const term = h('div', { class: 'term' },
-    h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'demo.pulse')),
-    editor.el,
-    h('div', { class: 'diag', id: 'demo-diag' }, h('span', { class: 'ok' }, '● live')));
+  const diag = h('div', { class: 'diag' }, h('span', { class: 'ok' }, '● live'));
   player.on((e) => {
     if (e.type !== 'parsed') return;
-    const d = term.querySelector('#demo-diag');
-    d.replaceChildren(...(e.result.errors.length
-      ? e.result.errors.slice(0, 3).map((x) => h('div', { class: 'e' }, `line ${x.line}: ${x.message}`))
+    diag.replaceChildren(...(e.result.errors.length
+      ? e.result.errors.slice(0, 2).map((x) => h('div', { class: 'e' }, `line ${x.line}: ${x.message}`))
       : [h('span', { class: 'ok' }, '● ok')]));
   });
+  consoleEl.append(
+    h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'demo.pulse')),
+    editor.el, diag, scope.el,
+    h('div', { class: 'console-foot' }, demoBtn, skipBtn, status));
 
-  const demo = h('section', { class: 'section', id: 'demo' },
-    h('h2', {}, 'Hear it before you sign up'),
-    h('p', { class: 'sub' }, 'This is the real engine, running in your browser. Each line is an instrument; each quoted pattern is one bar.'),
-    h('div', { class: 'demo' }, term,
-      h('div', { class: 'demo-side' }, scope.el,
-        h('div', { class: 'row' }, demoBtn, skipBtn), status,
-        h('img', { class: 'demo-poster', src: '/img/demo-poster.jpg', alt: 'Illustration of code turning into sound', loading: 'lazy' }))));
+  const chip = (ic, text) => h('li', {}, icon(ic, { size: 15 }), h('span', {}, text));
+  const demoPanel = h('section', { class: 'lp-panel lp-home', 'data-panel': 'demo', role: 'tabpanel' },
+    h('div', { class: 'hero-copy' },
+      h('h1', {}, 'Make music by typing code.'),
+      h('p', { class: 'lead' }, 'Write a few lines and hear them instantly. Edit while the track plays, let AI draft the first idea, then export the full song, every track on its own, or a ready-to-open Reaper project.'),
+      h('div', { class: 'cta' }, cta('btn big'), h('button', { class: 'btn big ghost', type: 'button', onclick: () => show('plans') }, 'See plans')),
+      h('ul', { class: 'chips' }, chip('code', 'Live coding'), chip('sparkles', 'AI drafts'), chip('layers', 'Tracks + Reaper'))),
+    consoleEl);
 
-  const feature = (img, title, text) => h('article', { class: 'card' }, h('img', { src: img, alt: '', loading: 'lazy' }), h('div', { class: 'pad' }, h('h3', {}, title), h('p', {}, text)));
-  const features = h('section', { class: 'section alt' },
-    h('h2', {}, 'Built for people who think in text'),
-    h('p', { class: 'sub' }, 'No timeline to drag around. A song is a short file you can read, copy, version and share.'),
-    h('div', { class: 'features' },
-      feature('/img/feature-live-code.jpg', 'Live coding', 'Edit while it plays. Valid changes go live on the next bar and mistakes are highlighted without stopping the music.'),
-      feature('/img/feature-ai.jpg', 'AI that writes code, not audio', 'Describe a mood and get an editable song back. You can read every line, change it and keep what you like.'),
-      feature('/img/master-result.jpg', 'Mastered export', 'One click renders your song, balances loudness and gives you a ZIP with the master, the mix and one file per instrument.')));
+  // ---------- features panel ----------
+  const featuresPanel = h('section', { class: 'lp-panel', 'data-panel': 'features', role: 'tabpanel' },
+    h('header', { class: 'lp-head' }, h('h2', {}, 'Everything you need to write, play and deliver a track'), h('p', {}, 'A song is a short file you can read, copy and share. No timeline to drag around.')),
+    h('div', { class: 'fgrid' }, FEATURES.map(([ic, title, text]) => h('article', { class: 'fcard' },
+      h('span', { class: 'ficon' }, icon(ic, { size: 22 })), h('h3', {}, title), h('p', {}, text)))));
 
-  const step = (img, title, text) => feature(img, title, text);
-  const steps = h('section', { class: 'section' },
-    h('h2', {}, 'From idea to finished track'),
-    h('div', { class: 'steps' },
-      step('/img/step-1-type.jpg', 'Type or generate', 'Start from an empty file, the demo, or a sentence like “dark techno at 130 bpm”.'),
-      step('/img/step-2-edit.jpg', 'Edit while it plays', 'Mute, solo, change a pattern or an effect and hear the result on the next bar.'),
-      step('/img/step-3-export.jpg', 'Master and export', 'Pick a preset, press the button and download WAV, MP3, stems and the project file.')),
-    h('img', { class: 'before-after', src: '/img/master-before-after.jpg', alt: 'A mix before and after mastering', loading: 'lazy' }));
+  // ---------- sounds panel ----------
+  const tile = (n) => (n === 'voice'
+    ? [h('div', { class: 'tile' }, h('img', { src: '/img/instruments/voice.png', alt: '', loading: 'lazy' }), h('span', {}, 'AI voice')),
+      h('div', { class: 'tile' }, h('span', { class: 'tile-ic' }, icon('mic', { size: 26 })), h('span', {}, 'Your mic'))]
+    : h('div', { class: 'tile' }, h('img', { src: `/img/instruments/${n}.png`, alt: '', loading: 'lazy' }), h('span', { 'data-notranslate': '' }, n)));
+  const soundsPanel = h('section', { class: 'lp-panel', 'data-panel': 'sounds', role: 'tabpanel' },
+    h('header', { class: 'lp-head' }, h('h2', {}, 'Eighteen instruments plus voices, all in the browser'), h('p', {}, 'Drums and synths are generated live with the Web Audio API. Nothing to install and no samples to download.')),
+    h('div', { class: 'sgrid' }, SOUND_GROUPS.map(([ic, name, items]) => h('article', { class: 'sgroup' },
+      h('header', {}, icon(ic, { size: 18 }), h('h3', {}, name), h('span', { class: 'count' }, String(name === 'Voices' ? 2 : items.length))),
+      h('div', { class: 'tiles' }, items.map(tile))))));
 
-  const instruments = h('section', { class: 'section alt' },
-    h('h2', {}, 'Twelve instruments, all in the browser'),
-    h('p', { class: 'sub' }, 'Drums and synths are generated live with the Web Audio API. Nothing to install and no samples to download.'),
-    h('div', { class: 'instr-grid' }, INSTRUMENTS.map((n) => h('div', {}, h('img', { src: `/img/instruments/${n}.png`, alt: '', loading: 'lazy' }), n))));
+  // ---------- plans panel ----------
+  let yearly = false;
+  const grid = h('div', { class: 'pgrid' });
+  const billing = h('div', { class: 'billing', role: 'group', 'aria-label': 'Billing period' });
+  const renderPlans = () => {
+    billing.replaceChildren(
+      h('button', { type: 'button', 'aria-pressed': String(!yearly), onclick: () => { yearly = false; renderPlans(); } }, 'Monthly'),
+      h('button', { type: 'button', 'aria-pressed': String(yearly), onclick: () => { yearly = true; renderPlans(); } }, 'Yearly', h('em', {}, '2 months free')));
+    grid.replaceChildren(...PLANS.map((p) => h('article', { class: `plan${p.popular ? ' popular' : ''}` },
+      p.popular ? h('span', { class: 'plan-badge' }, 'Most popular') : null,
+      h('header', {}, h('span', { class: 'ficon' }, icon(p.icon, { size: 20 })), h('h3', {}, p.name)),
+      h('p', { class: 'plan-blurb' }, p.blurb),
+      h('div', { class: 'price' }, h('b', { 'data-notranslate': '' }, `$${yearly ? p.year : p.month}`), h('span', {}, p.month === 0 ? 'free while in beta' : yearly ? 'per year' : 'per month')),
+      h('ul', {}, p.items.map((it) => h('li', {}, icon('check', { size: 16 }), h('span', {}, it)))),
+      p.id === 'free' ? cta('btn primary') : h('button', { class: 'btn', type: 'button', disabled: true }, 'Available at launch'))));
+  };
+  renderPlans();
+  const plansPanel = h('section', { class: 'lp-panel', 'data-panel': 'plans', role: 'tabpanel' },
+    h('header', { class: 'lp-head' }, h('h2', {}, 'Plans for every stage'), h('p', {}, 'Pulse Studio is in beta, so access is free for now. Prices are in US dollars; paid plans start at launch.')),
+    billing, grid);
 
-  const footer = h('footer', { class: 'footer' }, h('span', {}, `${APP_NAME} · a Puma Code product`), h('span', { class: 'spacer' }),
-    loggedIn ? link('/studio', {}, 'Open studio') : link('/login', {}, 'Sign in'));
+  const panels = [demoPanel, featuresPanel, soundsPanel, plansPanel];
+  const stage = h('main', { class: 'lp-stage' }, panels, siteFooter());
 
-  root.append(nav, hero, demo, features, steps, instruments, footer);
-  return () => { abort?.abort(); player.dispose(); scope.stop(); };
+  // ---------- bottom navigation (phones) ----------
+  const bottom = h('nav', { class: 'lp-bottom', 'aria-label': 'Sections' }, TABS.map(([id, ic, text]) =>
+    h('button', { type: 'button', 'data-tab': id, onclick: () => show(id) }, icon(ic, { size: 20 }), h('span', {}, text))));
+
+  function show(id, { push = true } = {}) {
+    if (!TABS.some(([t]) => t === id)) id = 'demo';
+    for (const p of panels) p.hidden = p.dataset.panel !== id;
+    for (const b of [...tabBtns, ...bottom.children]) b.setAttribute('aria-selected', String(b.dataset.tab === id));
+    for (const b of bottom.children) b.setAttribute('aria-current', String(b.dataset.tab === id));
+    stage.scrollTop = 0;
+    if (push && location.hash !== `#${id}`) history.replaceState({}, '', id === 'demo' ? location.pathname : `#${id}`);
+  }
+  const onHash = () => show(location.hash.slice(1) || 'demo', { push: false });
+  window.addEventListener('hashchange', onHash);
+
+  root.append(h('div', { class: 'lp' }, top, beta, stage, bottom));
+  onHash();
+  return () => { window.removeEventListener('hashchange', onHash); abort?.abort(); player.dispose(); scope.stop(); };
 }

@@ -1,6 +1,7 @@
 // Visual controls that edit the code: tempo bar, mixer with sliders, and the step editor.
 // Every control calls `edit(fn)`, which rewrites the song text, so the code always shows what changed.
 import { h, clear } from './dom.js';
+import { icon } from './icons.js';
 import { DRUMS, MELODIC } from '/shared/lang/spec.js';
 import { groupOf } from '/shared/lang/promptbuilder.js';
 import { setGlobal, setTrackEffect, setTrackWave, setStep, resizePattern, transposeTrack, getSteps, scaleNotes } from '/shared/lang/edit.js';
@@ -136,7 +137,7 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
     ];
     if (inst === 'voice') return h('div', { class: 'mix-body' }, rows.filter((_r, i) => i !== 2 && i !== 5), h('p', { class: 'muted', style: 'font-size:12px' }, 'Spoken lines: edit them in the Voices panel.'));
     const actions = h('div', { class: 'row', style: 'gap:6px' },
-      h('button', { class: 'btn small', type: 'button', onclick: () => openPattern(inst) }, '✎ Edit pattern'),
+      h('button', { class: 'btn small', type: 'button', onclick: () => openPattern(inst) }, icon('pencil', { size: 14 }), ' Edit pattern'),
       isDrum ? null : [
         h('button', { class: 'btn small', type: 'button', title: 'One octave down', onclick: () => edit((c) => transposeTrack(c, inst, -12, sec())) }, '−8ve'),
         h('button', { class: 'btn small', type: 'button', title: 'One semitone down', onclick: () => edit((c) => transposeTrack(c, inst, -1, sec())) }, '−1'),
@@ -162,7 +163,7 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
       const allSolo = members.every((n) => player.solo.has(n));
       root.append(h('div', { class: `mix-group g-${gid}` },
         h('span', {}, label), h('span', { class: 'mix-count' }, String(members.length)), h('span', { class: 'spacer' }),
-        h('button', { class: 'dl', title: `Download ${label.toLowerCase()} as WAV`, 'aria-label': `Download ${label} as WAV`, onclick: () => exportStem(members, label) }, '⬇'),
+        h('button', { class: 'dl', title: `Download ${label.toLowerCase()} as WAV`, 'aria-label': `Download ${label} as WAV`, onclick: () => exportStem(members, label) }, icon('download', { size: 14 })),
         h('button', { class: `m${allMuted ? ' on' : ''}`, title: `Mute all ${label.toLowerCase()}`, 'aria-pressed': String(allMuted), onclick: () => members.forEach((n) => player.mute.has(n) === allMuted && player.toggleMute(n)) }, 'M'),
         h('button', { class: `s${allSolo ? ' on' : ''}`, title: `Solo all ${label.toLowerCase()}`, 'aria-pressed': String(allSolo), onclick: () => members.forEach((n) => player.solo.has(n) === allSolo && player.toggleSolo(n)) }, 'S')));
       ordered.push(...members);
@@ -177,8 +178,8 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {} }
       const row = h('div', { class: `mix-card${open ? ' open' : ''}` },
         h('div', { class: `mix-row${player.mute.has(n) || (anySolo && !player.solo.has(n)) ? ' dim' : ''}` },
           h('img', { src: `/img/instruments/${n}.png`, alt: '' }),
-          h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? opened.delete(n) : opened.add(n); build(); } }, `${open ? '▾' : '▸'} ${n}`),
-          h('button', { class: 'dl', title: `Download ${n} as WAV`, 'aria-label': `Download ${n} as WAV`, onclick: () => exportStem([n], n) }, '⬇'),
+          h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? opened.delete(n) : opened.add(n); build(); } }, icon(open ? 'chevronDown' : 'arrowRight', { size: 14 }), ` ${n}`),
+          h('button', { class: 'dl', title: `Download ${n} as WAV`, 'aria-label': `Download ${n} as WAV`, onclick: () => exportStem([n], n) }, icon('download', { size: 14 })),
           h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
           h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S')),
         open ? controls(n) : null);

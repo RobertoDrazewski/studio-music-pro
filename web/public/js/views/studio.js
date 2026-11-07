@@ -9,6 +9,8 @@ import { STYLES, STYLE_BY_ID } from '/shared/lang/styles.js';
 import { openManual } from '../manual.js';
 import { insertLineInSection } from '/shared/lang/edit.js';
 import { createInstallButton } from '../install.js';
+import { icon } from '../icons.js';
+import { createUserMenu } from '../usermenu.js';
 import { createPromptPanel } from '../promptpanel.js';
 import { createVoicesPanel } from '../voices.js';
 import { makeEdit, createTempoBar, createMixer, createPatternEditor } from '../controls.js';
@@ -31,6 +33,8 @@ section main 8
 
 export async function mount(root, projectId) {
   const user = session.user;
+  const locked = user.limits?.canDownload === false;
+  const lockedModal = () => modal({ title: 'Downloads are not in the demo', body: h('div', { class: 'pf' }, h('p', {}, 'The demo lets you make one song and play it here. Downloading tracks, the full song or the Reaper project comes with a paid plan.'), h('p', { class: 'muted' }, 'Paid plans are available at launch.')), actions: [h('a', { class: 'btn primary', href: '/#plans' }, 'See plans')] });
   let projects = (await api.projects()).projects;
   let project = null;
 
@@ -94,7 +98,7 @@ export async function mount(root, projectId) {
   // ---------- visual controls (all of them rewrite the code) ----------
   const edit = makeEdit(editor);
   const patternEditor = createPatternEditor({ player, edit, editor });
-  const mixerUi = createMixer({ player, edit, exportStem: (names, label) => exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
+  const mixerUi = createMixer({ player, edit, exportStem: (names, label) => locked ? lockedModal() : exportStem(player.ast, title.value || 'song', names, label, (m) => toast(m, 'info', 1500)).then(() => toast(`${label} downloaded`, 'ok', 1800)).catch((e) => toast(e.message, 'error')), openPattern: (i) => patternEditor.open(i) });
   const mixer = mixerUi.el;
   const tempoBar = createTempoBar({ player, edit });
   const voicesPanel = createVoicesPanel({ player, edit, editor, session });
@@ -132,6 +136,7 @@ export async function mount(root, projectId) {
   };
   const newProject = async () => {
     await flush();
+    if (user.limits?.maxProjects && projects.length >= user.limits.maxProjects) return modal({ title: 'The demo has one song', body: h('div', { class: 'pf' }, h('p', {}, 'Keep editing your song, or delete it to start another. More songs come with a paid plan, available at launch.')), actions: [h('a', { class: 'btn primary', href: '/#plans' }, 'See plans')] });
     if (projects.length >= 50) return toast('You reached the project limit', 'error');
     try {
       const { project: p } = await api.createProject('Untitled song', STARTER);
@@ -270,6 +275,7 @@ export async function mount(root, projectId) {
 
   // ---------- export / master ----------
   const openExport = async () => {
+    if (locked) return lockedModal();
     if (!player.playable) return toast('Fix the errors (or add a section) before exporting', 'error');
     await flush();
     let presets = [];
@@ -372,18 +378,19 @@ export async function mount(root, projectId) {
     });
     toast('Added to your song', 'ok', 1800);
   };
-  const reference = h('button', { class: 'btn manual-btn', type: 'button', onclick: () => openManual({ insert: insertFromManual }) }, '📖 Open the full manual');
+  const reference = h('button', { class: 'btn manual-btn', type: 'button', onclick: () => openManual({ insert: insertFromManual }) }, icon('book', { size: 17 }), 'Open the full manual');
 
   // ---------- layout ----------
-  const logout = async () => { await flush(); await api.logout().catch(() => {}); session.clear(); navigate('/'); };
-  const topbar = h('header', { class: 'topbar' }, brand(), title, saveState, h('span', { class: 'spacer' }),
-    session.mode === 'trial' ? h('span', { class: 'chip ok', title: 'Invitation-only trial' }, 'trial') : null,
-    h('button', { class: 'btn small hide-sm', onclick: typeDemo }, '⌨ Type the demo'),
+  const userMenu = createUserMenu({ beforeLeave: flush });
+  const topbar = h('header', { class: 'topbar' },
+    link('/', { class: 'icon-btn home-btn', title: 'Back to the website', 'aria-label': 'Back to the website' }, icon('home', { size: 18 })),
+    brand(), title, saveState, h('span', { class: 'spacer' }),
+    session.mode === 'trial' ? h('span', { class: 'chip ok hide-sm', title: 'Invitation-only trial' }, 'beta') : null,
+    h('button', { class: 'btn small hide-sm', onclick: typeDemo }, icon('terminal', { size: 14 }), ' Type the demo'),
     createInstallButton(),
-    h('button', { class: 'btn small', onclick: openShare }, 'Share'),
-    h('button', { class: 'btn small primary', onclick: openExport }, 'Export'),
-    user.role === 'superadmin' ? link('/admin', { class: 'btn small ghost' }, 'Admin') : null,
-    h('button', { class: 'btn small ghost', onclick: logout, title: user.email }, `Sign out`));
+    h('button', { class: 'btn small', onclick: openShare }, icon('share', { size: 14 }), h('span', { class: 'hide-sm' }, ' Share')),
+    h('button', { class: 'btn small primary', onclick: openExport }, icon('download', { size: 14 }), ' Export'),
+    userMenu.el);
 
   const left = h('aside', { class: 'side left' },
     h('div', { class: 'pane', 'data-pane': 'songs' }, h('button', { class: 'btn', onclick: newProject }, '+ New song'), h('h3', {}, 'Your songs'), list),
@@ -391,11 +398,11 @@ export async function mount(root, projectId) {
     h('div', { class: 'pane', 'data-pane': 'voices' }, h('h3', {}, 'Voices'), voicesPanel.el));
   const center = h('main', { class: 'center', 'data-pane': 'play' }, scope.el, transport.el, tempoBar.el,
     h('div', { class: 'term' }, h('div', { class: 'term-bar' }, h('i'), h('i'), h('i'), h('span', {}, 'song.pulse')), editor.el, diag), patternEditor.el);
-  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('img', { class: 'ai-head', src: '/img/ai-panel.jpg', alt: '' }), h('h3', {}, 'AI assistant'), styleSel, aiPrompt,
+  const right = h('aside', { class: 'side right', 'data-pane': 'ai' }, h('h3', {}, 'AI assistant'), styleSel, aiPrompt,
     h('div', { class: 'row' }, aiBtnNew, aiBtnEdit, h('button', { class: 'btn', type: 'button', title: 'Free: loads a ready-made song of the chosen style', onclick: loadTemplate }, 'Load template')), aiNote,
     promptPanel.el, reference);
   // Bottom navigation (phones): one panel at a time.
-  const TABS = [['songs', '♫', 'Songs'], ['mixer', '🎚', 'Mixer'], ['play', '▶', 'Play'], ['voices', '🎙', 'Voices'], ['ai', '✨', 'AI']];
+  const TABS = [['songs', 'music', 'Songs'], ['mixer', 'sliders', 'Mixer'], ['play', 'play', 'Play'], ['voices', 'mic', 'Voices'], ['ai', 'sparkles', 'AI']];
   const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
   const nav = h('nav', { class: 'bottom-nav', 'aria-label': 'Studio sections' });
   const setTab = (id) => {
@@ -403,8 +410,8 @@ export async function mount(root, projectId) {
     for (const b of nav.children) b.setAttribute('aria-current', String(b.dataset.tab === id));
     studio.scrollTop = 0;
   };
-  for (const [id, icon, label] of TABS) {
-    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon), h('span', {}, label)));
+  for (const [id, ic, label] of TABS) {
+    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon(ic, { size: 21 })), h('span', {}, label)));
   }
   root.append(h('div', { class: 'studio-page' }, topbar, studio, nav));
   renderList();
@@ -425,5 +432,6 @@ export async function mount(root, projectId) {
     flush();
     player.dispose();
     scope.stop();
+    userMenu.dispose();
   };
 }

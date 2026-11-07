@@ -1,6 +1,9 @@
 import { api } from '../api.js';
 import { h, clear, toast, modal, copyText, fmtDate } from '../dom.js';
-import { session, link, brand, navigate } from '../main.js';
+import { session, link, brand } from '../main.js';
+import { icon } from '../icons.js';
+import { createUserMenu } from '../usermenu.js';
+import { siteFooter } from '../components.js';
 
 const money = (n) => `$${Number(n ?? 0).toFixed(2)}`;
 const quotaText = (q) => (q.limit === null ? `${q.used} / ∞` : `${q.used} / ${q.limit}`);
@@ -42,7 +45,7 @@ export async function mount(root) {
     const m = modal({ title: 'New access', body: h('div', {},
       h('div', { class: 'field' }, h('label', {}, 'Name'), name), h('div', { class: 'field' }, h('label', {}, 'Email'), email),
       h('div', { class: 'row' }, h('div', { class: 'field', style: 'flex:1' }, h('label', {}, 'AI requests / month'), ai), h('div', { class: 'field', style: 'flex:1' }, h('label', {}, 'Masters / day'), mst), h('div', { class: 'field', style: 'flex:1' }, h('label', {}, 'AI voices / month'), vq)),
-      h('div', { class: 'field' }, h('label', {}, 'Plan'), plan), err),
+      h('div', { class: 'field' }, h('label', {}, 'Plan'), plan, h('p', { class: 'muted', style: 'font-size:12px;margin:4px 0 0' }, 'trial = demo (1 song, no downloads). Any other plan name unlocks everything, for example beta, creator or studio.')), err),
     actions: [h('button', { class: 'btn primary', onclick: async (e) => {
       err.textContent = '';
       if (!name.value.trim() || !email.value.trim()) return (err.textContent = 'Name and email are required');
@@ -96,13 +99,14 @@ export async function mount(root) {
   }
 
   root.append(
-    h('header', { class: 'nav' }, brand(), h('span', { class: 'spacer' }), link('/studio', { class: 'btn small' }, 'Studio'),
-      h('button', { class: 'btn small ghost', onclick: async () => { await api.logout().catch(() => {}); session.clear(); navigate('/'); } }, 'Sign out')),
+    h('header', { class: 'nav' }, link('/', { class: 'icon-btn home-btn', title: 'Back to the website', 'aria-label': 'Back to the website' }, icon('home', { size: 18 })), brand(), h('span', { class: 'spacer' }), link('/studio', { class: 'btn small' }, icon('music', { size: 14 }), ' Studio'),
+      createUserMenu().el),
     h('main', { class: 'admin' },
-      h('div', { class: 'admin-hero' }, h('h1', {}, 'Administration')),
+      h('div', { class: 'admin-hero' }, h('h1', {}, 'Administration'), h('p', { class: 'muted' }, 'People, plans, usage and passwords.')),
       stats,
       h('div', { class: 'row', style: 'margin-bottom:12px' }, h('h2', { style: 'font-size:20px' }, 'Accesses'), h('span', { class: 'spacer' }),
         h('button', { class: 'btn primary', onclick: createUserModal }, '+ New access')),
-      tableBox));
+      tableBox),
+    siteFooter());
   await load();
 }

@@ -108,7 +108,7 @@ export async function loginAdmin(base) {
 
 // Creates a user as admin, changes the temporary password and returns a logged-in client.
 export async function createUser(base, admin, { email = 'user@example.com', name = 'User', ...rest } = {}) {
-  const created = await admin.post('/api/admin/users', { email, name, ...rest });
+  const created = await admin.post('/api/admin/users', { email, name, plan: 'beta', ...rest });
   const c = client(base);
   await c.post('/api/auth/login', { email, password: created.data.temporaryPassword });
   const newPassword = 'my-new-password-123';

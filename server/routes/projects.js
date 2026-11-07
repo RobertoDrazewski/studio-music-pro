@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { z, validate, HttpError } from '../http.js';
+import { z, validate, HttpError, isDemoUser, DEMO_MAX_PROJECTS } from '../http.js';
 import { parse } from '../../shared/lang/parser.js';
 
 function toApi(row, { withCode = true } = {}) {
@@ -42,6 +42,7 @@ export function projectRoutes({ db, config, auth }) {
   router.post('/', (req, res) => {
     const { title, code } = validate(bodySchema, req.body);
     const count = db.prepare('SELECT COUNT(*) AS n FROM projects WHERE user_id = ?').get(req.user.id).n;
+    if (isDemoUser(req.user) && count >= DEMO_MAX_PROJECTS) throw new HttpError(403, 'The demo includes one song. More songs come with a paid plan, available at launch.');
     if (count >= maxProjectsPerUser) throw new HttpError(403, `Project limit reached (${maxProjectsPerUser})`);
     const id = crypto.randomUUID();
     db.prepare('INSERT INTO projects (id, user_id, title, code) VALUES (?, ?, ?, ?)').run(id, req.user.id, title, code);

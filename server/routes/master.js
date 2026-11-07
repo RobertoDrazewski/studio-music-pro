@@ -3,7 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import multer from 'multer';
-import { z, validate, HttpError } from '../http.js';
+import { z, validate, HttpError, isDemoUser } from '../http.js';
 import { looksLikeWav, PRESETS } from '../services/mastering.js';
 
 function slugify(text) {
@@ -34,6 +34,7 @@ function jobToApi(row) {
 export function masterRoutes({ db, config, auth, quota, jobs }) {
   const router = Router();
   router.use(auth.requireAuth, auth.requirePasswordSet);
+  router.use((req, _res, next) => (isDemoUser(req.user) ? next(new HttpError(403, 'Downloads come with a paid plan, available at launch.')) : next()));
 
   const { maxUploadMb, maxStems } = config.master;
   fs.mkdirSync(config.tmpDir, { recursive: true });

@@ -1,5 +1,6 @@
 // "Install app": Chrome/Edge/Android show a native prompt; Safari (iOS and macOS) needs a manual step.
 import { h, modal } from './dom.js';
+import { icon } from './icons.js';
 
 let deferred = null;
 const listeners = new Set();
@@ -34,7 +35,7 @@ function manualHelp() {
 
 // Returns a button. Hidden when the app is already installed.
 export function createInstallButton(props = {}) {
-  const btn = h('button', { class: 'btn small ghost install-btn', type: 'button', title: 'Install as an app', ...props }, '⬇ Install app');
+  const btn = h('button', { class: 'btn small ghost install-btn', type: 'button', title: 'Install as an app', ...props }, icon('download', { size: 14 }), ' Install app');
   btn.addEventListener('click', async () => {
     if (deferred) {
       deferred.prompt();

@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { h, clear, toast } from './dom.js';
 import { APP_NAME } from './config.js';
 import { registerServiceWorker } from './install.js';
+import { initI18n } from './i18n.js';
 
 const state = { user: null, mode: 'trial', quota: null };
 let cleanup = null;
@@ -21,6 +22,7 @@ export const session = {
     return state.user;
   },
   clear() { Object.assign(state, { user: null, quota: null }); },
+  setUser(u) { state.user = u; },
   set quota(q) { state.quota = q; },
 };
 
@@ -93,8 +95,6 @@ window.addEventListener('auth:must-change', () => navigate('/login', { replace: 
 
 registerServiceWorker();
 
-window.addEventListener('DOMContentLoaded', () => {
-  // Tone.js loads with `defer` before this module runs, but guard anyway.
-  render();
-});
-if (document.readyState !== 'loading') render();
+const start = async () => { await initI18n(); render(); };
+if (document.readyState !== 'loading') start();
+else window.addEventListener('DOMContentLoaded', start);
