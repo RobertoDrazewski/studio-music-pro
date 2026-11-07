@@ -323,16 +323,39 @@ export async function mount(root, projectId) {
     acc('Or write a new song with AI', false, h('div', { class: 'row' }, aiBtnNew)), aiNote, reference);
   // Navegación inferior (celulares): un panel a la vez.
   const TABS = [['songs', 'music', 'Songs'], ['mixer', 'sliders', 'Mixer'], ['play', 'play', 'Play'], ['voices', 'mic', 'Voices'], ['ai', 'sparkles', 'AI']];
-  const studio = h('div', { class: 'studio', 'data-tab': 'play' }, left, center, right);
+  // data-left = panel de la izquierda en escritorio (canciones, mezclador o voces); data-ai = panel de IA visible o no.
+  const studio = h('div', { class: 'studio', 'data-tab': 'play', 'data-left': 'mixer', 'data-ai': 'on' }, left, center, right);
   const nav = h('nav', { class: 'bottom-nav', 'aria-label': 'Studio sections' });
-  const setTab = (id) => {
-    studio.dataset.tab = id;
-    for (const b of nav.children) b.setAttribute('aria-current', String(b.dataset.tab === id));
-    studio.scrollTop = 0;
+  const isDesktop = () => window.matchMedia('(min-width: 821px)').matches;
+  // Pinto el estado de cada botón: en el celular manda la pestaña activa; en escritorio, el panel izquierdo, la IA y si suena la música.
+  const refreshNav = () => {
+    const desk = isDesktop();
+    for (const b of nav.children) {
+      const id = b.dataset.tab;
+      const on = desk ? id === studio.dataset.left : id === studio.dataset.tab;
+      b.setAttribute('aria-current', String(on));
+      b.setAttribute('aria-pressed', String(desk && id === 'ai' ? studio.dataset.ai === 'on' : false));
+      b.classList.toggle('live', desk && id === 'play' && player.playing);
+    }
   };
+  const setTab = (id) => {
+    if (isDesktop()) {
+      // Escritorio: las herramientas de la izquierda se cambian, la IA se muestra u oculta y Play arranca o frena la música.
+      if (id === 'ai') studio.dataset.ai = studio.dataset.ai === 'on' ? 'off' : 'on';
+      else if (id === 'play') transport.el.querySelector('.play')?.click();
+      else studio.dataset.left = id;
+    } else {
+      studio.dataset.tab = id;
+      studio.scrollTop = 0;
+    }
+    refreshNav();
+  };
+  player.on((e) => { if (e.type === 'state') refreshNav(); });
+  window.addEventListener('resize', refreshNav);
   for (const [id, ic, label] of TABS) {
-    nav.append(h('button', { type: 'button', 'data-tab': id, 'aria-current': String(id === 'play'), onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon(ic, { size: 21 }), (badges[id] = h('b', { class: 'badge', hidden: true }))), h('span', {}, label)));
+    nav.append(h('button', { type: 'button', 'data-tab': id, onclick: () => setTab(id) }, h('span', { class: 'bn-i', 'aria-hidden': 'true' }, icon(ic, { size: 21 }), (badges[id] = h('b', { class: 'badge', hidden: true }))), h('span', {}, label)));
   }
+  refreshNav();
   for (const id in counts) setBadge(id, counts[id]);
   root.append(h('div', { class: 'studio-page' }, topbar, activity, studio, nav));
   renderList();
@@ -349,6 +372,7 @@ export async function mount(root, projectId) {
   return () => {
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('beforeunload', onUnload);
+    window.removeEventListener('resize', refreshNav);
     typingAbort?.abort();
     flush();
     player.dispose();

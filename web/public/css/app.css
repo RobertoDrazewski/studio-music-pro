@@ -597,3 +597,27 @@ td .row { flex-wrap: nowrap; gap: 6px; }
 /* En el iPhone, un campo con letra menor a 16px hace zoom al tocarlo y ya no vuelve: por eso los dejo en 16px. */
 @media (max-width: 820px) { input, select, textarea, .title-input { font-size: 16px; } }
 .act-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* ---------- escritorio: la misma barra de herramientas que en el celular, con brillo ---------- */
+@media (min-width: 821px) {
+  .studio-page .bottom-nav { display: flex; order: 1; justify-content: center; gap: 8px; padding: 8px 16px; background: linear-gradient(var(--bg2), #070d14); border-top: 0; border-bottom: 1px solid var(--line); }
+  .activity { order: 2; }
+  .studio { order: 3; }
+  .bottom-nav button { display: flex; align-items: center; flex: 0 0 auto; flex-direction: row; gap: 8px; min-height: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 8px 18px; border: 1px solid transparent; border-radius: 10px; font-size: 14px; font-weight: 600; transition: color .15s, background .15s, box-shadow .15s; }
+  .bottom-nav button:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
+  .bottom-nav button[aria-current="true"], .bottom-nav button[aria-pressed="true"] { color: var(--accent); background: rgba(163, 230, 53, .08); border-color: rgba(163, 230, 53, .35); box-shadow: 0 0 18px rgba(163, 230, 53, .22), inset 0 0 12px rgba(163, 230, 53, .08); }
+  .bottom-nav button.live { color: var(--accent); border-color: rgba(163, 230, 53, .5); animation: nav-glow 1.6s ease-in-out infinite; }
+  @keyframes nav-glow { 50% { box-shadow: 0 0 26px rgba(163, 230, 53, .45); } }
+  /* Panel izquierdo: se ve una sola herramienta a la vez, igual que en el celular */
+  .studio .side.left [data-pane] { display: none; }
+  .studio[data-left="songs"] .side.left [data-pane="songs"], .studio[data-left="mixer"] .side.left [data-pane="mixer"], .studio[data-left="voices"] .side.left [data-pane="voices"] { display: flex; }
+  .studio[data-ai="off"] { grid-template-columns: 300px minmax(0, 1fr); }
+  .studio[data-ai="off"] .side.right { display: none; }
+  .studio { grid-template-columns: 300px minmax(0, 1fr) 340px; }
+  .side { background: rgba(8, 15, 22, .82); backdrop-filter: blur(6px); }
+  .meter { width: 8px; height: 28px; box-shadow: inset 0 0 0 1px #14232d; }
+  .meter i { box-shadow: 0 0 8px rgba(163, 230, 53, .5); }
+  .mix-card { transition: border-color .15s; }
+  .mix-card:hover { border-color: #2c4452; }
+}
+@media (min-width: 821px) and (max-width: 1100px) { .studio { grid-template-columns: 280px minmax(0, 1fr); } .studio[data-ai="off"] { grid-template-columns: 280px minmax(0, 1fr); } }
