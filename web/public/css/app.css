@@ -621,3 +621,62 @@ td .row { flex-wrap: nowrap; gap: 6px; }
   .mix-card:hover { border-color: #2c4452; }
 }
 @media (min-width: 821px) and (max-width: 1100px) { .studio { grid-template-columns: 280px minmax(0, 1fr); } .studio[data-ai="off"] { grid-template-columns: 280px minmax(0, 1fr); } }
+
+/* =====================================================================================
+   Escritorio pro: profundidad, tipografía y mezclador tipo consola (el celular no se toca)
+   ===================================================================================== */
+.mix-vol { display: none; }
+@media (min-width: 821px) {
+  /* Fondo con profundidad: una luz verde tenue arriba y viñeta en los bordes */
+  .studio::before { background: radial-gradient(900px 380px at 50% -80px, rgba(163, 230, 53, .10), transparent 70%), radial-gradient(700px 500px at 100% 100%, rgba(34, 211, 238, .06), transparent 70%), rgba(4, 8, 13, .93); }
+  .studio-page .topbar { background: linear-gradient(#0d1822, #09121a); box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 8px 24px rgba(0, 0, 0, .35); position: relative; z-index: 4; }
+  .studio-page .bottom-nav { box-shadow: 0 10px 28px rgba(0, 0, 0, .35); position: relative; z-index: 3; }
+
+  /* Paneles laterales: superficies en capas, borde con luz y títulos en la fuente de marca */
+  .side { background: linear-gradient(180deg, rgba(14, 24, 33, .88), rgba(7, 13, 19, .92)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); scrollbar-width: thin; scrollbar-color: #24394a transparent; }
+  .side h3 { font-family: var(--display); font-size: 19px; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--text); margin: 2px 0 0; }
+  .center { padding: 14px; gap: 14px; scrollbar-width: thin; scrollbar-color: #24394a transparent; }
+
+  /* Osciloscopio, transporte, tempo y editor: tarjetas con sombra y brillo suave */
+  .scope { background: radial-gradient(120% 140% at 50% 0%, #0c1b25, #050b10); border-color: #1d3342; box-shadow: 0 10px 30px rgba(0, 0, 0, .45), inset 0 0 40px rgba(163, 230, 53, .05); }
+  .transport, .tempo-bar { background: linear-gradient(180deg, #0f1b25, #0a131b); border-color: #1d3342; box-shadow: 0 8px 22px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
+  .term { border-color: #1d3342; box-shadow: 0 14px 40px rgba(0, 0, 0, .5), 0 0 0 1px rgba(163, 230, 53, .04); }
+  .term-bar { background: linear-gradient(#0e1a23, #0a141b); font-family: var(--mono); letter-spacing: .02em; }
+  .editor { font-size: 14.5px; line-height: 1.7; }
+  .btn { transition: transform .12s, box-shadow .15s, border-color .15s, background .15s; }
+  .btn:hover { border-color: #2d4a5e; }
+  .btn.primary:hover { box-shadow: 0 0 22px rgba(163, 230, 53, .35); transform: translateY(-1px); }
+
+  /* Mezclador tipo consola: cada instrumento es una tira con fader vertical y medidor de leds */
+  .mixer { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 10px; }
+  .mixer > .mix-quick, .mixer > select, .mixer > .mix-group, .mixer > p, .mixer > .mix-card.open { grid-column: 1 / -1; }
+  .mixer > .mix-group { margin: 10px 0 0; background: linear-gradient(90deg, rgba(255, 255, 255, .05), transparent); border-radius: 6px; }
+  .mix-card { background: linear-gradient(180deg, #101d27, #0a141c); border-color: #1d3342; border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .05); }
+  .mix-card:not(.open) .mix-row { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-areas: "img nm nm" "fad fad mtr" "dl m s"; align-items: center; justify-items: center; gap: 8px 6px; padding: 10px 8px 10px; }
+  .mix-card:not(.open) .mix-row > img { grid-area: img; justify-self: start; width: 30px; height: 30px; }
+  .mix-card:not(.open) .nm-btn { grid-area: nm; justify-self: stretch; font-family: var(--display); font-weight: 600; font-size: 14px; }
+  .mix-card:not(.open) .meter { grid-area: mtr; width: 12px; height: 118px; }
+  .mix-card:not(.open) .mix-vol { grid-area: fad; display: block; grid-template-columns: none; width: 44px; }
+  .mix-card:not(.open) .mix-vol > span { display: none; }
+  .mix-card:not(.open) .mix-vol .val { position: absolute; left: 0; right: 0; bottom: -17px; text-align: center; color: var(--muted); font-size: 11px; }
+  .mix-card:not(.open) .mix-vol { position: relative; margin-bottom: 18px; }
+  .mix-card:not(.open) .mix-vol input[type=range] { writing-mode: vertical-lr; direction: rtl; width: 30px; height: 118px; margin: 0 auto; display: block; accent-color: var(--accent); }
+  .mix-card:not(.open) .mix-row > button.dl { grid-area: dl; } .mix-card:not(.open) .mix-row > button.m { grid-area: m; } .mix-card:not(.open) .mix-row > button.s { grid-area: s; }
+  .mix-card:not(.open) .mix-row > button { width: 100%; max-width: 34px; }
+  /* Medidor de leds: la barra se rellena de abajo hacia arriba y unas rayitas la cortan en segmentos */
+  .meter { position: relative; background: #060d13; border-radius: 4px; }
+  .meter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(#060d13 0 2px, transparent 2px 6px); pointer-events: none; }
+  .meter i { background: linear-gradient(to top, var(--accent) 0 55%, #fbbf24 55% 82%, var(--pink) 82%); }
+}
+@media (min-width: 821px) {
+  .mix-card:not(.open) .nm-btn { display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+}
+/* En pantallas anchas, el panel del mezclador se ensancha para que entren tres tiras por fila */
+@media (min-width: 1280px) {
+  .studio[data-left="mixer"] { grid-template-columns: 372px minmax(0, 1fr) 340px; }
+  .studio[data-left="mixer"][data-ai="off"] { grid-template-columns: 372px minmax(0, 1fr); }
+}
+@media (min-width: 821px) {
+  .mix-card:not(.open) .nm-btn svg { display: none; }
+  .mix-card:not(.open) .nm-btn { text-overflow: ellipsis; padding-left: 4px; }
+}

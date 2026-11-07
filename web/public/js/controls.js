@@ -210,6 +210,15 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
     return h('span', { class: 'meter', 'aria-hidden': 'true' }, bar);
   }
 
+  // Fader de volumen del canal: el mismo valor `vol` del código, pero a mano en la tira (solo escritorio).
+  function channelFader(n) {
+    const f = slider({ label: 'Volume', min: 0, max: 1.5, step: 0.01, format: (v) => v.toFixed(2),
+      get: () => fx(firstTrack(n), 'vol') ?? 1,
+      set: (v) => edit((c) => setTrackEffect(c, n, 'vol', v === 1 ? null : v, { section: scopeSection() })) });
+    f.classList.add('mix-vol');
+    return f;
+  }
+
   function card(n, anySolo) {
     {
       const open = opened.has(n);
@@ -220,7 +229,8 @@ export function createMixer({ player, edit, openPattern, exportStem = () => {}, 
           h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? opened.delete(n) : opened.add(n); build(); } }, icon(open ? 'chevronDown' : 'arrowRight', { size: 14 }), ` ${n}`),
           h('button', { class: 'dl', title: `Download ${n} as WAV`, 'aria-label': `Download ${n} as WAV`, onclick: () => exportStem([n], n) }, icon('download', { size: 14 })),
           h('button', { class: `m${player.mute.has(n) ? ' on' : ''}`, title: 'Mute', 'aria-pressed': String(player.mute.has(n)), onclick: () => player.toggleMute(n) }, 'M'),
-          h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S')),
+          h('button', { class: `s${player.solo.has(n) ? ' on' : ''}`, title: 'Solo', 'aria-pressed': String(player.solo.has(n)), onclick: () => player.toggleSolo(n) }, 'S'),
+          channelFader(n)),
         open ? controls(n) : null);
       return row;
     }
