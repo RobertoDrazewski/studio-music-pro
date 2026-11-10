@@ -8,6 +8,13 @@ export class ApiError extends Error {
   }
 }
 
+// Si la respuesta de error no viene de la app (502, 503 o 504 del servidor o del proxy), no trae mensaje: explico qué pasó.
+function failureText(status) {
+  return status === 502 || status === 503 || status === 504 || status === 524
+    ? 'The server did not answer. It may be restarting after an update. Wait a few seconds and try again.'
+    : `Request failed (${status})`;
+}
+
 async function request(method, url, body, opts = {}) {
   const isBlob = body instanceof Blob;
   const res = await fetch(url, {
@@ -26,7 +33,7 @@ async function request(method, url, body, opts = {}) {
   if (!res.ok) {
     if (res.status === 401 && !opts.quiet401) window.dispatchEvent(new CustomEvent('auth:expired'));
     if (res.status === 403 && data?.code === 'PASSWORD_CHANGE_REQUIRED') window.dispatchEvent(new CustomEvent('auth:must-change'));
-    throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.code);
+    throw new ApiError(res.status, data?.error || failureText(res.status), data?.code);
   }
   return data;
 }
@@ -60,7 +67,7 @@ export const api = {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       if (res.status === 401) window.dispatchEvent(new CustomEvent('auth:expired'));
-      throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.code);
+      throw new ApiError(res.status, data?.error || failureText(res.status), data?.code);
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();

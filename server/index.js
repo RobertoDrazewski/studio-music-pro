@@ -13,6 +13,11 @@ const server = app.listen(config.port, () => {
   console.log(`[studio] listening on :${config.port} (${config.appMode} mode, ${config.isProd ? 'production' : 'development'})`);
 });
 
+// Detrás del túnel de Cloudflare las conexiones se reutilizan. Node cierra por defecto las inactivas a los 5 s, y si el túnel
+// justo manda un pedido por una conexión que se está cerrando, el usuario ve un 502 suelto. Las dejo abiertas más tiempo.
+server.keepAliveTimeout = 120_000;
+server.headersTimeout = 125_000;
+
 function shutdown(signal) {
   console.log(`[studio] ${signal} received, shutting down`);
   server.close(() => {

@@ -740,7 +740,8 @@ export default {
  "The connection was interrupted. Try again.": "Se cortó la conexión. Probá de nuevo.",
  "Fix the errors in the song first": "Corregí primero los errores de la canción",
  "The AI did not return a usable mix this time. Try again.": "La IA no devolvió una mezcla utilizable esta vez. Probá de nuevo.",
- "The AI could not produce valid code this time": "La IA no pudo producir código válido esta vez"
+ "The AI could not produce valid code this time": "La IA no pudo producir código válido esta vez",
+ "The server did not answer. It may be restarting after an update. Wait a few seconds and try again.": "El servidor no respondió. Puede estar reiniciándose por una actualización. Esperá unos segundos y probá de nuevo."
 },
   patterns: [
   [/^Delete (.+)$/, (n) => `Eliminar ${n}`],

@@ -50,7 +50,9 @@ Errors always have the shape `{ "error": "message", "code"?: "MACHINE_CODE" }`.
 | GET | `/ai/guide` | | language reference text |
 | GET | `/ai/quota` | | |
 | POST | `/ai/voice` | `{ text, voice: female\|male, style?, onlyCached? }` | Returns `audio/mpeg`. Cached by content (header `X-Voice-Cached`); a cached clip is free. `onlyCached` never spends (404 `VOICE_NOT_CACHED`). 429 `VOICE_QUOTA_EXCEEDED`, 503 `AI_BUDGET_EXCEEDED` |
-| POST | `/ai/generate` | `{ prompt, code?, style? }` | `code` present = edit that song. Returns `{ code, warnings, quota }`. The code is always valid for the Pulse parser |
+| POST | `/ai/generate` | `{ prompt, code?, style?, minutes? }` | `code` present = edit that song. Returns `{ code, warnings, quota }`. The code is always valid for the Pulse parser |
+| POST | `/ai/generate-stream` | same as `/ai/generate` | Same result, sent as newline-delimited JSON: `{t:'p',chars,lines}` progress events, then `{t:'done',code,warnings,quota}` or `{t:'error',error,code,status}`. Keeps the connection alive for long songs |
+| POST | `/ai/mix` | `{ prompt, code }` | Returns `{ mix, quota }` with per-instrument `vol`, `pan`, `reverb`, `delay`, `lowpass` and `highpass`; the browser applies them. It never rewrites the song |
 
 ## Master and export
 The browser renders the song offline and uploads WAV files. Cloudflare rejects request bodies over 100 MB, so the web app sends **each file in its own request** (upload session). A single multipart request also works for scripts and small files.
